@@ -2,12 +2,13 @@ import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import AppLayout from '@/layouts/app-layout';
 import { Transition } from '@headlessui/react';
 import { useForm } from '@inertiajs/react';
 import React, { useState } from 'react';
+import { IndikatorForm } from './components/forms/IndikatorForm';
+import { PertanyaanForm } from './components/forms/PertanyaanForm';
+import { IndikatorList } from './components/IndikatorList';
 
 export default function StandarMutuDetail({ standar }: any) {
     const [showDialog, setShowDialog] = useState(false);
@@ -52,14 +53,23 @@ export default function StandarMutuDetail({ standar }: any) {
         setShowDialog(true);
     };
     // Handle submit for indikator
-    const handleIndikatorSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleIndikatorSubmit = (data: { nama: string; deskripsi: string }) => {
         if (modalType === 'indikator-add') {
             indikatorForm.post(`/standar-mutu/${standar.id}/indikator`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
                 },
+                onError: (errors) => {
+                    console.error('Error saving indikator:', errors);
+                    // The error will be automatically handled by the form's error bag
+                },
+                onFinish: () => {
+                    // Reset form processing state
+                    indikatorForm.clearErrors();
+                },
+                preserveScroll: true,
+                preserveState: true,
             });
         } else if (modalType === 'indikator-edit' && selectedIndikator) {
             indikatorForm.put(`/standar-mutu/${standar.id}/indikator/${selectedIndikator.id}`, {
@@ -67,25 +77,62 @@ export default function StandarMutuDetail({ standar }: any) {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
                 },
+                onError: (errors) => {
+                    console.error('Error updating indikator:', errors);
+                    // The error will be automatically handled by the form's error bag
+                },
+                onFinish: () => {
+                    // Reset form processing state
+                    indikatorForm.clearErrors();
+                },
+                preserveScroll: true,
+                preserveState: true,
             });
         }
     };
     // Handle submit for pertanyaan
-    const handlePertanyaanSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
+    const handlePertanyaanSubmit = (data: { isi: string }) => {
         if (modalType === 'pertanyaan-add' && selectedIndikator) {
-            pertanyaanForm.post(`/standar-mutu/${standar.id}/indikator/${selectedIndikator.id}/pertanyaan`, {
+            // Set the form data before submission
+            pertanyaanForm.setData('isi', data.isi);
+            pertanyaanForm.post(`/indikator/${selectedIndikator.id}/pertanyaan`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    // Reset form after successful submission
+                    pertanyaanForm.reset();
                 },
+                onError: (errors: any) => {
+                    console.error('Error saving pertanyaan:', errors);
+                    // The error will be automatically handled by the form's error bag
+                },
+                onFinish: () => {
+                    // Reset form processing state
+                    pertanyaanForm.clearErrors();
+                },
+                preserveScroll: true,
+                preserveState: true,
             });
-        } else if (modalType === 'pertanyaan-edit' && selectedIndikator && selectedPertanyaan) {
-            pertanyaanForm.put(`/standar-mutu/${standar.id}/indikator/${selectedIndikator.id}/pertanyaan/${selectedPertanyaan.id}`, {
+        } else if (modalType === 'pertanyaan-edit' && selectedPertanyaan) {
+            // Set the form data before submission
+            pertanyaanForm.setData('isi', data.isi);
+            pertanyaanForm.put(`/pertanyaan/${selectedPertanyaan.id}`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    // Reset form after successful update
+                    pertanyaanForm.reset();
                 },
+                onError: (errors: any) => {
+                    console.error('Error updating pertanyaan:', errors);
+                    // The error will be automatically handled by the form's error bag
+                },
+                onFinish: () => {
+                    // Reset form processing state
+                    pertanyaanForm.clearErrors();
+                },
+                preserveScroll: true,
+                preserveState: true,
             });
         }
     };
@@ -97,6 +144,12 @@ export default function StandarMutuDetail({ standar }: any) {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
                 },
+                onError: (errors) => {
+                    console.error('Error deleting indikator:', errors);
+                    alert('Gagal menghapus indikator. Silakan coba lagi.');
+                },
+                preserveScroll: true,
+                preserveState: true,
             });
         }
     };
@@ -139,61 +192,14 @@ export default function StandarMutuDetail({ standar }: any) {
                         Tambah Indikator
                     </Button>
                 </div>
-                <ul className="mb-4">
-                    {standar.indikator.map((indikator: any, idx: number) => (
-                        <li key={indikator.id} className="mb-2 rounded border p-2">
-                            <div className="flex items-center justify-between">
-                                <span>
-                                    {idx + 1}. {indikator.nama}
-                                </span>
-                                <div className="flex gap-2">
-                                    <Button variant="outline" size="sm" onClick={() => openIndikatorModal('indikator-edit', indikator)}>
-                                        Edit
-                                    </Button>
-                                    <Button variant="destructive" size="sm" onClick={() => openIndikatorModal('indikator-delete', indikator)}>
-                                        Hapus
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="mt-2 ml-4">
-                                <b>Pertanyaan:</b>
-                                <ol>
-                                    {indikator.pertanyaan.map((q: any, i: number) => (
-                                        <li key={q.id} className="flex items-center justify-between">
-                                            <span>
-                                                {i + 1}. {q.isi}
-                                            </span>
-                                            <div className="flex gap-2">
-                                                <Button
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={() => openPertanyaanModal('pertanyaan-edit', q, indikator)}
-                                                >
-                                                    Edit
-                                                </Button>
-                                                <Button
-                                                    variant="destructive"
-                                                    size="sm"
-                                                    onClick={() => openPertanyaanModal('pertanyaan-delete', q, indikator)}
-                                                >
-                                                    Hapus
-                                                </Button>
-                                            </div>
-                                        </li>
-                                    ))}
-                                </ol>
-                                <Button
-                                    className="mt-2"
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() => openPertanyaanModal('pertanyaan-add', undefined, indikator)}
-                                >
-                                    Tambah Pertanyaan
-                                </Button>
-                            </div>
-                        </li>
-                    ))}
-                </ul>
+                <IndikatorList
+                    indikators={standar.indikator}
+                    onEditIndikator={(indikator) => openIndikatorModal('indikator-edit', indikator)}
+                    onDeleteIndikator={(indikator) => openIndikatorModal('indikator-delete', indikator)}
+                    onAddPertanyaan={(indikator) => openPertanyaanModal('pertanyaan-add', undefined, indikator)}
+                    onEditPertanyaan={(pertanyaan, indikator) => openPertanyaanModal('pertanyaan-edit', pertanyaan, indikator)}
+                    onDeletePertanyaan={(pertanyaan, indikator) => openPertanyaanModal('pertanyaan-delete', pertanyaan, indikator)}
+                />
                 {/* Dialogs for indikator/pertanyaan CRUD */}
                 <Dialog open={showDialog} onOpenChange={setShowDialog}>
                     {modalType === 'indikator-add' && (
@@ -201,61 +207,27 @@ export default function StandarMutuDetail({ standar }: any) {
                             <DialogHeader>
                                 <DialogTitle>Tambah Indikator</DialogTitle>
                             </DialogHeader>
-                            <form onSubmit={handleIndikatorSubmit} className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="indikator-nama">Nama</Label>
-                                    <Input
-                                        id="indikator-nama"
-                                        value={indikatorForm.data.nama}
-                                        onChange={(e) => indikatorForm.setData('nama', e.target.value)}
-                                        required
-                                    />
-                                    <InputError message={indikatorForm.errors.nama} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="indikator-deskripsi">Deskripsi</Label>
-                                    <Input
-                                        id="indikator-deskripsi"
-                                        value={indikatorForm.data.deskripsi}
-                                        onChange={(e) => indikatorForm.setData('deskripsi', e.target.value)}
-                                    />
-                                    <InputError message={indikatorForm.errors.deskripsi} />
-                                </div>
-                                <Button type="submit" disabled={indikatorForm.processing}>
-                                    Simpan
-                                </Button>
-                            </form>
+                            <IndikatorForm
+                                onSubmit={handleIndikatorSubmit}
+                                onCancel={() => setShowDialog(false)}
+                                isProcessing={indikatorForm.processing}
+                            />
                         </DialogContent>
                     )}
-                    {modalType === 'indikator-edit' && (
+                    {modalType === 'indikator-edit' && selectedIndikator && (
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Edit Indikator</DialogTitle>
                             </DialogHeader>
-                            <form onSubmit={handleIndikatorSubmit} className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="indikator-nama">Nama</Label>
-                                    <Input
-                                        id="indikator-nama"
-                                        value={indikatorForm.data.nama}
-                                        onChange={(e) => indikatorForm.setData('nama', e.target.value)}
-                                        required
-                                    />
-                                    <InputError message={indikatorForm.errors.nama} />
-                                </div>
-                                <div className="grid gap-2">
-                                    <Label htmlFor="indikator-deskripsi">Deskripsi</Label>
-                                    <Input
-                                        id="indikator-deskripsi"
-                                        value={indikatorForm.data.deskripsi}
-                                        onChange={(e) => indikatorForm.setData('deskripsi', e.target.value)}
-                                    />
-                                    <InputError message={indikatorForm.errors.deskripsi} />
-                                </div>
-                                <Button type="submit" disabled={indikatorForm.processing}>
-                                    Simpan Perubahan
-                                </Button>
-                            </form>
+                            <IndikatorForm
+                                initialData={{
+                                    nama: selectedIndikator.nama,
+                                    deskripsi: selectedIndikator.deskripsi || ''
+                                }}
+                                onSubmit={handleIndikatorSubmit}
+                                onCancel={() => setShowDialog(false)}
+                                isProcessing={indikatorForm.processing}
+                            />
                         </DialogContent>
                     )}
                     {modalType === 'indikator-delete' && (
@@ -271,48 +243,31 @@ export default function StandarMutuDetail({ standar }: any) {
                             </Button>
                         </DialogContent>
                     )}
-                    {modalType === 'pertanyaan-add' && (
+                    {modalType === 'pertanyaan-add' && selectedIndikator && (
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Tambah Pertanyaan</DialogTitle>
                             </DialogHeader>
-                            <form onSubmit={handlePertanyaanSubmit} className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pertanyaan-isi">Isi Pertanyaan</Label>
-                                    <Input
-                                        id="pertanyaan-isi"
-                                        value={pertanyaanForm.data.isi}
-                                        onChange={(e) => pertanyaanForm.setData('isi', e.target.value)}
-                                        required
-                                    />
-                                    <InputError message={pertanyaanForm.errors.isi} />
-                                </div>
-                                <Button type="submit" disabled={pertanyaanForm.processing}>
-                                    Simpan
-                                </Button>
-                            </form>
+                            <PertanyaanForm
+                                onSubmit={handlePertanyaanSubmit}
+                                onCancel={() => setShowDialog(false)}
+                                isProcessing={pertanyaanForm.processing}
+                            />
                         </DialogContent>
                     )}
-                    {modalType === 'pertanyaan-edit' && (
+                    {modalType === 'pertanyaan-edit' && selectedPertanyaan && (
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Edit Pertanyaan</DialogTitle>
                             </DialogHeader>
-                            <form onSubmit={handlePertanyaanSubmit} className="space-y-4">
-                                <div className="grid gap-2">
-                                    <Label htmlFor="pertanyaan-isi">Isi Pertanyaan</Label>
-                                    <Input
-                                        id="pertanyaan-isi"
-                                        value={pertanyaanForm.data.isi}
-                                        onChange={(e) => pertanyaanForm.setData('isi', e.target.value)}
-                                        required
-                                    />
-                                    <InputError message={pertanyaanForm.errors.isi} />
-                                </div>
-                                <Button type="submit" disabled={pertanyaanForm.processing}>
-                                    Simpan Perubahan
-                                </Button>
-                            </form>
+                            <PertanyaanForm
+                                initialData={{
+                                    isi: selectedPertanyaan.isi
+                                }}
+                                onSubmit={handlePertanyaanSubmit}
+                                onCancel={() => setShowDialog(false)}
+                                isProcessing={pertanyaanForm.processing}
+                            />
                         </DialogContent>
                     )}
                     {modalType === 'pertanyaan-delete' && (
