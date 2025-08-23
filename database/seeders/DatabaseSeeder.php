@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolePermissionSeeder::class,
+            StandarMutuSeeder::class,
         ]);
 
         $user = User::factory()->create([
