@@ -14,6 +14,9 @@ use App\Http\Controllers\MediaFolderController;
 use App\Http\Controllers\StandarMutuController;
 use App\Http\Controllers\DosenController;
 use App\Http\Controllers\UnitController;
+use App\Http\Controllers\PeriodeController;
+use App\Http\Controllers\AuditSessionController;
+use App\Http\Controllers\AuditSessionDetailController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -45,8 +48,18 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('dosen', DosenController::class)->only(['index','store','update','destroy']);
     // units routes
     Route::resource('units', UnitController::class)->only(['index','store','update','destroy']);
+    // periodes routes
+    Route::resource('periodes', PeriodeController::class)->only(['index','store','update','destroy']);
+    // audit mutu internal (AMI)
+    Route::resource('audit-internal', AuditSessionController::class)->only(['index','store','update','destroy']);
+    Route::get('audit-internal/{id}/detail', [AuditSessionDetailController::class, 'show'])->name('audit-internal.detail');
+    Route::post('audit-internal/{id}/standars', [AuditSessionDetailController::class, 'saveStandars']);
+    Route::post('audit-internal/{id}/units', [AuditSessionDetailController::class, 'addUnit']);
+    Route::delete('audit-internal/{id}/units/{sessionUnitId}', [AuditSessionDetailController::class, 'removeUnit']);
+    Route::post('audit-internal/{id}/units/{sessionUnitId}/auditors', [AuditSessionDetailController::class, 'saveAuditors']);
     // standar mutu routes
     Route::resource('standar-mutu', StandarMutuController::class);
+    Route::get('standar-mutu/{id}.json', [StandarMutuController::class, 'showJson'])->name('standar-mutu.show-json');
     Route::post('standar-mutu/{standar}/indikator', [StandarMutuController::class, 'storeIndikator']);
     Route::put('standar-mutu/{standar}/indikator/{id}', [StandarMutuController::class, 'updateIndikator']);
     Route::delete('standar-mutu/{standar}/indikator/{id}', [StandarMutuController::class, 'destroyIndikator']);

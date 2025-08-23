@@ -38,6 +38,16 @@ class StandarMutuController extends Controller
         ]);
     }
 
+    public function showJson($id)
+    {
+        $standar = StandarMutu::with(['indikator' => function($q){
+            $q->orderBy('urutan');
+        }, 'indikator.pertanyaan' => function($q){
+            $q->orderBy('urutan');
+        }])->findOrFail($id);
+        return response()->json($standar);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

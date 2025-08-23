@@ -39,11 +39,14 @@ class RolePermissionSeeder extends Seeder
             'Standar Mutu' => [
                 'standar-mutu-view',
             ],
-            'Dosen' => [
+            'Master Data' => [
+                'master-data-view',
                 'dosen-view',
-            ],
-            'Units' => [
                 'units-view',
+                'periodes-view',
+            ],
+            'Audit' => [
+                'audit-internal-view',
             ],
         ];
 

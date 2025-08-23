@@ -101,6 +101,15 @@ class MenuSeeder extends Seeder
             'permission_name' => 'utilities-view',
         ]);
 
+        // GROUP: Master Data
+        $master_data = Menu::create([
+            'title' => 'Master Data',
+            'icon' => 'CreditCard',
+            'route' => '#',
+            'order' => 5,
+            'permission_name' => 'master-data-view',
+        ]);
+
         Menu::create([
             'title' => 'Audit Logs',
             'icon' => 'Activity',
@@ -120,12 +129,30 @@ class MenuSeeder extends Seeder
         ]);
 
         
+        
+        // GROUP: Audit
+        $audit_group = Menu::create([
+            'title' => 'Audit',
+            'icon' => 'ShieldCheck',
+            'route' => '#',
+            'order' => 6,
+            'permission_name' => 'audit-internal-view',
+        ]);
+        
         Menu::create([
             'title' => 'Standar Mutu',
             'icon' => 'CheckCircle',
             'route' => '/standar-mutu',
-            'order' => 4,
+            'order' => 1,
             'permission_name' => 'standar-mutu-view',
+        ]);
+        Menu::create([
+            'title' => 'Audit Mutu Internal',
+            'icon' => 'ClipboardCheck',
+            'route' => '/audit-internal',
+            'order' => 2,
+            'permission_name' => 'audit-internal-view',
+            'parent_id' => $audit_group->id,
         ]);
         
         Menu::create([
@@ -134,6 +161,7 @@ class MenuSeeder extends Seeder
             'route' => '/dosen',
             'order' => 5,
             'permission_name' => 'dosen-view',
+            'parent_id' => $master_data->id,
         ]);
         
         Menu::create([
@@ -142,6 +170,16 @@ class MenuSeeder extends Seeder
             'route' => '/units',
             'order' => 6,
             'permission_name' => 'units-view',
+            'parent_id' => $master_data->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Periode',
+            'icon' => 'CalendarRange',
+            'route' => '/periodes',
+            'order' => 7,
+            'permission_name' => 'periodes-view',
+            'parent_id' => $master_data->id,
         ]);
         
         $permissions = Menu::pluck('permission_name')->unique()->filter();
