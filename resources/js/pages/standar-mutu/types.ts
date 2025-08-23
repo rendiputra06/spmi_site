@@ -19,8 +19,10 @@ export interface Pertanyaan extends Timestamps {
 export interface Indikator extends Timestamps {
   id: number;
   nama: string;
-  deskripsi: string;
-  standar_mutu_id: number;
+  kriteria_penilaian?: string | null;
+  jenis_pengukuran: 'kuantitatif' | 'kualitatif';
+  target_pencapaian?: string | null;
+  standar_id: number;
   pertanyaan?: Pertanyaan[];
   // Add other indikator fields as needed
 }
@@ -47,8 +49,10 @@ export interface StandarMutuFormData {
 
 export interface IndikatorFormData {
   nama: string;
-  deskripsi: string;
-  standar_mutu_id: number;
+  kriteria_penilaian?: string | null;
+  jenis_pengukuran: 'kuantitatif' | 'kualitatif';
+  target_pencapaian?: string | null;
+  standar_id: number;
 }
 
 export interface PertanyaanFormData {

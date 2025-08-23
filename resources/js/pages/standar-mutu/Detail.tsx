@@ -1,14 +1,16 @@
 import HeadingSmall from '@/components/heading-small';
 import InputError from '@/components/input-error';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AppLayout from '@/layouts/app-layout';
 import { Transition } from '@headlessui/react';
-import { useForm } from '@inertiajs/react';
-import React, { useState } from 'react';
+import { useForm, router } from '@inertiajs/react';
+import { useState } from 'react';
 import { IndikatorForm } from './components/forms/IndikatorForm';
 import { PertanyaanForm } from './components/forms/PertanyaanForm';
 import { IndikatorList } from './components/IndikatorList';
+import { ArrowLeft, RefreshCw, Search } from 'lucide-react';
 
 export default function StandarMutuDetail({ standar }: any) {
     const [showDialog, setShowDialog] = useState(false);
@@ -18,11 +20,14 @@ export default function StandarMutuDetail({ standar }: any) {
     const [selectedIndikator, setSelectedIndikator] = useState<any>(null);
     const [selectedPertanyaan, setSelectedPertanyaan] = useState<any>(null);
     const [recentlySuccessful, setRecentlySuccessful] = useState(false);
+    const [query, setQuery] = useState('');
 
     // Form for indikator
     const indikatorForm = useForm({
         nama: '',
-        deskripsi: '',
+        kriteria_penilaian: '',
+        jenis_pengukuran: 'kuantitatif' as 'kuantitatif' | 'kualitatif',
+        target_pencapaian: '',
     });
     // Form for pertanyaan
     const pertanyaanForm = useForm({
@@ -34,7 +39,12 @@ export default function StandarMutuDetail({ standar }: any) {
         setModalType(type);
         setSelectedIndikator(indikator || null);
         if (type === 'indikator-edit' && indikator) {
-            indikatorForm.setData({ nama: indikator.nama, deskripsi: indikator.deskripsi });
+            indikatorForm.setData({
+                nama: indikator.nama,
+                kriteria_penilaian: indikator.kriteria_penilaian || '',
+                jenis_pengukuran: indikator.jenis_pengukuran || 'kuantitatif',
+                target_pencapaian: indikator.target_pencapaian || '',
+            });
         } else {
             indikatorForm.reset();
         }
@@ -53,37 +63,62 @@ export default function StandarMutuDetail({ standar }: any) {
         setShowDialog(true);
     };
     // Handle submit for indikator
-    const handleIndikatorSubmit = (data: { nama: string; deskripsi: string }) => {
+    const handleIndikatorSubmit = (data: { nama: string; kriteria_penilaian?: string | null; jenis_pengukuran: 'kuantitatif' | 'kualitatif'; target_pencapaian?: string | null }) => {
+        // Debug outgoing payload from child form
+        console.log('Submitting indikator data:', data);
+        if (!data.nama || data.nama.trim() === '') {
+            alert('Nama indikator wajib diisi.');
+            return;
+        }
         if (modalType === 'indikator-add') {
+            // Shape the outgoing payload precisely for this request
+            indikatorForm.transform(() => ({
+                nama: data.nama,
+                kriteria_penilaian: data.kriteria_penilaian ?? null,
+                jenis_pengukuran: data.jenis_pengukuran,
+                target_pencapaian: data.target_pencapaian ?? null,
+            }));
+            console.log('Posting indikator (add) transformed: ', {
+                nama: data.nama,
+                kriteria_penilaian: data.kriteria_penilaian ?? null,
+                jenis_pengukuran: data.jenis_pengukuran,
+                target_pencapaian: data.target_pencapaian ?? null,
+            });
             indikatorForm.post(`/standar-mutu/${standar.id}/indikator`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    indikatorForm.reset();
+                    router.reload({ only: ['standar'] });
                 },
                 onError: (errors) => {
                     console.error('Error saving indikator:', errors);
-                    // The error will be automatically handled by the form's error bag
-                },
-                onFinish: () => {
-                    // Reset form processing state
-                    indikatorForm.clearErrors();
                 },
                 preserveScroll: true,
                 preserveState: true,
             });
         } else if (modalType === 'indikator-edit' && selectedIndikator) {
+            indikatorForm.transform(() => ({
+                nama: data.nama,
+                kriteria_penilaian: data.kriteria_penilaian ?? null,
+                jenis_pengukuran: data.jenis_pengukuran,
+                target_pencapaian: data.target_pencapaian ?? null,
+            }));
+            console.log('Posting indikator (edit) transformed: ', {
+                nama: data.nama,
+                kriteria_penilaian: data.kriteria_penilaian ?? null,
+                jenis_pengukuran: data.jenis_pengukuran,
+                target_pencapaian: data.target_pencapaian ?? null,
+            });
             indikatorForm.put(`/standar-mutu/${standar.id}/indikator/${selectedIndikator.id}`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    indikatorForm.reset();
+                    router.reload({ only: ['standar'] });
                 },
                 onError: (errors) => {
                     console.error('Error updating indikator:', errors);
-                    // The error will be automatically handled by the form's error bag
-                },
-                onFinish: () => {
-                    // Reset form processing state
-                    indikatorForm.clearErrors();
                 },
                 preserveScroll: true,
                 preserveState: true,
@@ -92,15 +127,23 @@ export default function StandarMutuDetail({ standar }: any) {
     };
     // Handle submit for pertanyaan
     const handlePertanyaanSubmit = (data: { isi: string }) => {
+        // Debug outgoing payload from child form
+        console.log('Submitting pertanyaan data:', data);
+        if (!data.isi || data.isi.trim() === '') {
+            alert('Isi pertanyaan tidak boleh kosong.');
+            return;
+        }
         if (modalType === 'pertanyaan-add' && selectedIndikator) {
-            // Set the form data before submission
-            pertanyaanForm.setData('isi', data.isi);
+            // Shape payload precisely and avoid stale state
+            pertanyaanForm.transform(() => ({ isi: data.isi }));
+            console.log('Posting pertanyaan (add) transformed:', { isi: data.isi });
             pertanyaanForm.post(`/indikator/${selectedIndikator.id}/pertanyaan`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
                     // Reset form after successful submission
                     pertanyaanForm.reset();
+                    router.reload({ only: ['standar'] });
                 },
                 onError: (errors: any) => {
                     console.error('Error saving pertanyaan:', errors);
@@ -114,14 +157,16 @@ export default function StandarMutuDetail({ standar }: any) {
                 preserveState: true,
             });
         } else if (modalType === 'pertanyaan-edit' && selectedPertanyaan) {
-            // Set the form data before submission
-            pertanyaanForm.setData('isi', data.isi);
+            // Shape payload precisely and avoid stale state
+            pertanyaanForm.transform(() => ({ isi: data.isi }));
+            console.log('Posting pertanyaan (edit) transformed:', { isi: data.isi });
             pertanyaanForm.put(`/pertanyaan/${selectedPertanyaan.id}`, {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
                     // Reset form after successful update
                     pertanyaanForm.reset();
+                    router.reload({ only: ['standar'] });
                 },
                 onError: (errors: any) => {
                     console.error('Error updating pertanyaan:', errors);
@@ -136,6 +181,16 @@ export default function StandarMutuDetail({ standar }: any) {
             });
         }
     };
+    // Derived filtered list of indikator based on query (client-side)
+    const filteredIndikators = (standar.indikator || []).filter((it: any) => {
+        const q = query.toLowerCase();
+        if (!q) return true;
+        return (
+            (it.nama || '').toLowerCase().includes(q) ||
+            (it.kriteria_penilaian || '').toLowerCase().includes(q) ||
+            (it.target_pencapaian || '').toLowerCase().includes(q)
+        );
+    });
     // Handle delete for indikator
     const handleIndikatorDelete = () => {
         if (selectedIndikator) {
@@ -143,6 +198,7 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    router.reload({ only: ['standar'] });
                 },
                 onError: (errors) => {
                     console.error('Error deleting indikator:', errors);
@@ -160,6 +216,7 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    router.reload({ only: ['standar'] });
                 },
             });
         }
@@ -173,6 +230,36 @@ export default function StandarMutuDetail({ standar }: any) {
             title={`Detail Standar: ${standar.nama}`}
         >
             <div className="space-y-6 p-6">
+                {/* Top bar: Back, Refresh, Search */}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => router.get('/standar-mutu')} className="gap-2">
+                            <ArrowLeft className="h-4 w-4" />
+                            <span>Kembali</span>
+                        </Button>
+                        <Button variant="outline" onClick={() => router.reload({ only: ['standar'] })} className="gap-2">
+                            <RefreshCw className="h-4 w-4" />
+                            <span>Muat Ulang</span>
+                        </Button>
+                    </div>
+                    <div className="w-full sm:w-96">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                type="search"
+                                placeholder="Cari indikator..."
+                                className="w-full pl-9"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                            />
+                        </div>
+                        {query && (
+                            <div className="mt-2 flex justify-end">
+                                <Button variant="outline" size="sm" onClick={() => setQuery('')}>Reset</Button>
+                            </div>
+                        )}
+                    </div>
+                </div>
                 <HeadingSmall title={`Detail Standar: ${standar.nama}`} description={standar.deskripsi} />
                 <p className="mb-2">
                     Kode: <b>{standar.kode}</b>
@@ -186,14 +273,18 @@ export default function StandarMutuDetail({ standar }: any) {
                 >
                     <p className="text-sm text-green-600">Berhasil!</p>
                 </Transition>
-                <div className="mb-2 flex items-center justify-between">
-                    <h2 className="text-lg font-semibold">Indikator</h2>
+                <div className="mb-4 flex items-center justify-between">
+                    <div>
+                        <h2 className="text-lg font-semibold">Indikator</h2>
+                        <p className="text-sm text-muted-foreground">Drag dan drop untuk mengubah urutan</p>
+                    </div>
                     <Button variant="default" onClick={() => openIndikatorModal('indikator-add')}>
                         Tambah Indikator
                     </Button>
                 </div>
                 <IndikatorList
-                    indikators={standar.indikator}
+                    indikators={filteredIndikators}
+                    standarId={standar.id}
                     onEditIndikator={(indikator) => openIndikatorModal('indikator-edit', indikator)}
                     onDeleteIndikator={(indikator) => openIndikatorModal('indikator-delete', indikator)}
                     onAddPertanyaan={(indikator) => openPertanyaanModal('pertanyaan-add', undefined, indikator)}
@@ -222,7 +313,9 @@ export default function StandarMutuDetail({ standar }: any) {
                             <IndikatorForm
                                 initialData={{
                                     nama: selectedIndikator.nama,
-                                    deskripsi: selectedIndikator.deskripsi || ''
+                                    kriteria_penilaian: selectedIndikator.kriteria_penilaian || '',
+                                    jenis_pengukuran: selectedIndikator.jenis_pengukuran || 'kuantitatif',
+                                    target_pencapaian: selectedIndikator.target_pencapaian || '',
                                 }}
                                 onSubmit={handleIndikatorSubmit}
                                 onCancel={() => setShowDialog(false)}

@@ -119,6 +119,31 @@ class MenuSeeder extends Seeder
             'parent_id' => $utilities->id,
         ]);
 
+        
+        Menu::create([
+            'title' => 'Standar Mutu',
+            'icon' => 'CheckCircle',
+            'route' => '/standar-mutu',
+            'order' => 4,
+            'permission_name' => 'standar-mutu-view',
+        ]);
+        
+        Menu::create([
+            'title' => 'Dosen',
+            'icon' => 'UserCircle',
+            'route' => '/dosen',
+            'order' => 5,
+            'permission_name' => 'dosen-view',
+        ]);
+        
+        Menu::create([
+            'title' => 'Units',
+            'icon' => 'Building2',
+            'route' => '/units',
+            'order' => 6,
+            'permission_name' => 'units-view',
+        ]);
+        
         $permissions = Menu::pluck('permission_name')->unique()->filter();
 
         foreach ($permissions as $permName) {

@@ -7,7 +7,14 @@ use Illuminate\Database\Eloquent\Model;
 class Indikator extends Model
 {
     protected $table = 'indikator';
-    protected $fillable = ['standar_id', 'nama', 'urutan'];
+    protected $fillable = [
+        'standar_id',
+        'nama',
+        'kriteria_penilaian',
+        'jenis_pengukuran',
+        'target_pencapaian',
+        'urutan',
+    ];
 
     public function standar()
     {

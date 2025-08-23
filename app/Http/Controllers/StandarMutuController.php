@@ -7,6 +7,7 @@ use App\Models\Indikator;
 use App\Models\Pertanyaan;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
 
 class StandarMutuController extends Controller
 {
@@ -68,29 +69,41 @@ class StandarMutuController extends Controller
     }
 
     // CRUD Indikator
-    public function storeIndikator(Request $request, $standarId)
+    public function storeIndikator(Request $request, $standar)
     {
+        // Temporary log to verify incoming payload
+        Log::info('storeIndikator payload', $request->all());
         $data = $request->validate([
             'nama' => 'required|string',
+            'kriteria_penilaian' => 'nullable|string',
+            'jenis_pengukuran' => 'required|in:kuantitatif,kualitatif',
+            'target_pencapaian' => 'nullable|string',
         ]);
+        $maxUrutan = Indikator::where('standar_id', $standar)->max('urutan');
         Indikator::create([
-            'standar_id' => $standarId,
+            'standar_id' => $standar,
             'nama' => $data['nama'],
-            'urutan' => Indikator::where('standar_id', $standarId)->max('urutan') + 1,
+            'kriteria_penilaian' => $data['kriteria_penilaian'] ?? null,
+            'jenis_pengukuran' => $data['jenis_pengukuran'],
+            'target_pencapaian' => $data['target_pencapaian'] ?? null,
+            'urutan' => ($maxUrutan ?? 0) + 1,
         ]);
         return back();
     }
-    public function updateIndikator(Request $request, $id)
+    public function updateIndikator(Request $request, $standar, $id)
     {
         $data = $request->validate([
             'nama' => 'required|string',
+            'kriteria_penilaian' => 'nullable|string',
+            'jenis_pengukuran' => 'required|in:kuantitatif,kualitatif',
+            'target_pencapaian' => 'nullable|string',
         ]);
-        Indikator::findOrFail($id)->update($data);
+        Indikator::where('id', $id)->where('standar_id', $standar)->firstOrFail()->update($data);
         return back();
     }
-    public function destroyIndikator($id)
+    public function destroyIndikator($standar, $id)
     {
-        Indikator::findOrFail($id)->delete();
+        Indikator::where('id', $id)->where('standar_id', $standar)->firstOrFail()->delete();
         return back();
     }
 
@@ -100,10 +113,11 @@ class StandarMutuController extends Controller
         $data = $request->validate([
             'isi' => 'required|string',
         ]);
+        $maxUrutan = Pertanyaan::where('indikator_id', $indikatorId)->max('urutan');
         Pertanyaan::create([
             'indikator_id' => $indikatorId,
             'isi' => $data['isi'],
-            'urutan' => Pertanyaan::where('indikator_id', $indikatorId)->max('urutan') + 1,
+            'urutan' => ($maxUrutan ?? 0) + 1,
         ]);
         return back();
     }
@@ -115,24 +129,30 @@ class StandarMutuController extends Controller
         Pertanyaan::findOrFail($id)->update($data);
         return back();
     }
-    public function destroyPertanyaan($id)
+    public function destroyPertanyaan($standar, $indikator, $id)
     {
-        Pertanyaan::findOrFail($id)->delete();
+        $pertanyaan = Pertanyaan::where('id', $id)
+            ->where('indikator_id', $indikator)
+            ->whereHas('indikator', function($query) use ($standar) {
+                $query->where('standar_id', $standar);
+            })
+            ->firstOrFail();
+        $pertanyaan->delete();
         return back();
     }
 
     // Update urutan indikator/pertanyaan (drag-and-drop)
-    public function updateUrutanIndikator(Request $request, $standarId)
+    public function updateUrutanIndikator(Request $request, $standar)
     {
         foreach ($request->input('urutan') as $id => $urutan) {
-            Indikator::where('id', $id)->where('standar_id', $standarId)->update(['urutan' => $urutan]);
+            Indikator::where('id', $id)->where('standar_id', $standar)->update(['urutan' => $urutan]);
         }
         return back();
     }
-    public function updateUrutanPertanyaan(Request $request, $indikatorId)
+    public function updateUrutanPertanyaan(Request $request, $indikator)
     {
         foreach ($request->input('urutan') as $id => $urutan) {
-            Pertanyaan::where('id', $id)->where('indikator_id', $indikatorId)->update(['urutan' => $urutan]);
+            Pertanyaan::where('id', $id)->where('indikator_id', $indikator)->update(['urutan' => $urutan]);
         }
         return back();
     }

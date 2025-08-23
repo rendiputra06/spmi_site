@@ -12,6 +12,8 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\SettingAppController;
 use App\Http\Controllers\MediaFolderController;
 use App\Http\Controllers\StandarMutuController;
+use App\Http\Controllers\DosenController;
+use App\Http\Controllers\UnitController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -39,14 +41,18 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('/files', [UserFileController::class, 'store'])->name('files.store');
     Route::delete('/files/{id}', [UserFileController::class, 'destroy'])->name('files.destroy');
     Route::resource('media', MediaFolderController::class);
+    // dosen routes
+    Route::resource('dosen', DosenController::class)->only(['index','store','update','destroy']);
+    // units routes
+    Route::resource('units', UnitController::class)->only(['index','store','update','destroy']);
     // standar mutu routes
     Route::resource('standar-mutu', StandarMutuController::class);
     Route::post('standar-mutu/{standar}/indikator', [StandarMutuController::class, 'storeIndikator']);
-    Route::put('indikator/{id}', [StandarMutuController::class, 'updateIndikator']);
-    Route::delete('indikator/{id}', [StandarMutuController::class, 'destroyIndikator']);
+    Route::put('standar-mutu/{standar}/indikator/{id}', [StandarMutuController::class, 'updateIndikator']);
+    Route::delete('standar-mutu/{standar}/indikator/{id}', [StandarMutuController::class, 'destroyIndikator']);
     Route::post('indikator/{indikator}/pertanyaan', [StandarMutuController::class, 'storePertanyaan']);
     Route::put('pertanyaan/{id}', [StandarMutuController::class, 'updatePertanyaan']);
-    Route::delete('pertanyaan/{id}', [StandarMutuController::class, 'destroyPertanyaan']);
+    Route::delete('standar-mutu/{standar}/indikator/{indikator}/pertanyaan/{id}', [StandarMutuController::class, 'destroyPertanyaan']);
     Route::post('standar-mutu/{standar}/indikator/urutan', [StandarMutuController::class, 'updateUrutanIndikator']);
     Route::post('indikator/{indikator}/pertanyaan/urutan', [StandarMutuController::class, 'updateUrutanPertanyaan']);
 });

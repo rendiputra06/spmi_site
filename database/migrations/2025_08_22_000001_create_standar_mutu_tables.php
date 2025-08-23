@@ -20,6 +20,9 @@ return new class extends Migration {
             $table->id();
             $table->foreignId('standar_id')->constrained('standar_mutu')->onDelete('cascade');
             $table->string('nama');
+            $table->text('kriteria_penilaian')->nullable();
+            $table->enum('jenis_pengukuran', ['kuantitatif', 'kualitatif']);
+            $table->string('target_pencapaian')->nullable();
             $table->integer('urutan')->default(0);
             $table->timestamps();
         });

@@ -36,6 +36,15 @@ class RolePermissionSeeder extends Seeder
                 'log-view',
                 'filemanager-view',
             ],
+            'Standar Mutu' => [
+                'standar-mutu-view',
+            ],
+            'Dosen' => [
+                'dosen-view',
+            ],
+            'Units' => [
+                'units-view',
+            ],
         ];
 
         foreach ($permissions as $group => $perms) {

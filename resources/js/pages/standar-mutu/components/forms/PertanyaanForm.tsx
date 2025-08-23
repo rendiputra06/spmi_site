@@ -37,6 +37,7 @@ export function PertanyaanForm({ initialData, onSubmit, onCancel, isProcessing }
                     id="pertanyaan-isi"
                     value={form.data.isi}
                     onChange={(e) => form.setData('isi', e.target.value)}
+                    placeholder="Contoh: Apakah proses pembimbingan skripsi berjalan sesuai SOP?"
                     required
                     disabled={isProcessing}
                 />
