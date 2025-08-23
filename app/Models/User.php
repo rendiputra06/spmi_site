@@ -53,4 +53,9 @@ class User extends Authenticatable implements HasMedia
     {
         return $this->hasMany(MediaFolder::class);
     }
+
+    public function dosen()
+    {
+        return $this->hasOne(Dosen::class);
+    }
 }

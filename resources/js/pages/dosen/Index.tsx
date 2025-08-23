@@ -19,11 +19,12 @@ interface DosenIndexProps {
   search?: string;
   status?: string;
   error?: string;
+  roles?: string[];
 }
 
 type ModalType = 'add' | 'edit' | 'delete' | null;
 
-export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
+export default function DosenIndex({ dosen, search, status, roles = [] }: DosenIndexProps) {
   const [query, setQuery] = useState(search || '');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [recentlySuccessful, setRecentlySuccessful] = useState(false);
@@ -41,6 +42,10 @@ export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
     pangkat_golongan: '',
     pendidikan_terakhir: '',
     status: true,
+    create_user: false,
+    send_invite: false,
+    user_roles: [],
+    password: '',
   });
 
   const handleSearch = (e?: React.FormEvent) => {
@@ -72,8 +77,15 @@ export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
     }
   };
 
+  const [editingLinked, setEditingLinked] = useState<boolean>(false);
+
   const openAddModal = () => {
     reset();
+    setData('create_user', false);
+    setData('send_invite', false);
+    setData('user_roles', []);
+    setData('password', '');
+    setEditingLinked(false);
     setModalType('add');
     setIsDialogOpen(true);
   };
@@ -87,7 +99,12 @@ export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
     setData('pangkat_golongan', row.pangkat_golongan || '');
     setData('pendidikan_terakhir', row.pendidikan_terakhir || '');
     setData('status', row.status);
+    setData('create_user', false);
+    setData('send_invite', false);
+    setData('user_roles', []);
+    setData('password', '');
     setEditId(row.id);
+    setEditingLinked(!!row.user_id);
     setModalType('edit');
     setIsDialogOpen(true);
   };
@@ -133,7 +150,11 @@ export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
     }
 
     if (modalType === 'add') {
-      transform((payload) => ({ ...payload }));
+      transform((payload) => ({
+        ...payload,
+        user_roles: payload.user_roles && payload.user_roles.length ? payload.user_roles : undefined,
+        password: payload.password ? payload.password : undefined,
+      }));
       post('/dosen', {
         onSuccess: () => {
           setIsDialogOpen(false);
@@ -142,7 +163,11 @@ export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
         },
       });
     } else if (modalType === 'edit' && editId) {
-      transform((payload) => ({ ...payload }));
+      transform((payload) => ({
+        ...payload,
+        user_roles: payload.user_roles && payload.user_roles.length ? payload.user_roles : undefined,
+        password: payload.password ? payload.password : undefined,
+      }));
       put(`/dosen/${editId}`, {
         onSuccess: () => {
           setIsDialogOpen(false);
@@ -272,6 +297,8 @@ export default function DosenIndex({ dosen, search, status }: DosenIndexProps) {
                 reset();
               }}
               isEdit={modalType === 'edit'}
+              roles={roles}
+              isLinked={editingLinked}
             />
           </div>
         </div>

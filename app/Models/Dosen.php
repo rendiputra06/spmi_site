@@ -15,6 +15,7 @@ class Dosen extends Model
         'nidn',
         'nama',
         'email',
+        'user_id',
         'prodi',
         'jabatan',
         'pangkat_golongan',
@@ -25,4 +26,9 @@ class Dosen extends Model
     protected $casts = [
         'status' => 'boolean',
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 }

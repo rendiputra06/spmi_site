@@ -13,9 +13,11 @@ type Props = {
   onSubmit: (e: React.FormEvent) => void;
   onCancel: () => void;
   isEdit?: boolean;
+  roles?: string[]; // available roles from backend
+  isLinked?: boolean; // whether dosen already linked to a user
 };
 
-export function DosenForm({ data, setData, errors, processing, onSubmit, onCancel, isEdit }: Props) {
+export function DosenForm({ data, setData, errors, processing, onSubmit, onCancel, isEdit, roles = [], isLinked = false }: Props) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
       <div className="grid gap-2">
@@ -119,6 +121,66 @@ export function DosenForm({ data, setData, errors, processing, onSubmit, onCance
           <option value="0">Non-aktif</option>
         </select>
         <InputError message={errors.status as unknown as string} />
+      </div>
+
+      {/* Opsi Akun Pengguna */}
+      <div className="space-y-2 rounded-md border p-3">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={!!data.create_user}
+            onChange={(e) => setData('create_user', e.target.checked)}
+            disabled={processing || isLinked}
+          />
+          <span>Buat akun pengguna untuk dosen ini</span>
+        </label>
+        {data.create_user && !isLinked ? (
+          <div className="ml-6 space-y-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={!!data.send_invite}
+                onChange={(e) => setData('send_invite', e.target.checked)}
+                disabled={processing}
+              />
+              <span>Kirim email undangan (reset password)</span>
+            </label>
+            <div className="grid gap-2">
+              <Label htmlFor="user-roles" className="text-xs">Role User (boleh lebih dari satu)</Label>
+              <select
+                id="user-roles"
+                multiple
+                className="border rounded px-3 py-2 text-sm h-28"
+                value={data.user_roles || []}
+                onChange={(e) => {
+                  const selected = Array.from(e.target.selectedOptions).map((o) => o.value);
+                  setData('user_roles', selected);
+                }}
+                disabled={processing}
+              >
+                {roles.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+              <InputError message={errors.user_roles as unknown as string} />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="user-password" className="text-xs">Password (opsional)</Label>
+              <input
+                id="user-password"
+                type="text"
+                className="border rounded h-9 px-3 text-sm"
+                value={data.password || ''}
+                onChange={(e) => setData('password', e.target.value)}
+                placeholder="Kosongkan untuk password acak"
+                disabled={processing}
+              />
+            </div>
+          </div>
+        ) : null}
+        {isLinked && (
+          <p className="ml-1 text-xs text-muted-foreground">Akun pengguna sudah terhubung. Pengaturan akun tidak dapat diubah dari sini.</p>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-2">

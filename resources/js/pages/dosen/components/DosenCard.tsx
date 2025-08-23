@@ -23,6 +23,9 @@ export function DosenCard({ item, index, currentPage, perPage, onEdit, onDelete 
           <span className={`rounded px-2 py-0.5 text-xs ${item.status ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
             {item.status ? 'Aktif' : 'Non-aktif'}
           </span>
+          <span className={`rounded px-2 py-0.5 text-xs ${item.user_id ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}`}>
+            {item.user_id ? 'User terhubung' : 'Belum ada user'}
+          </span>
         </div>
         <p className="text-sm text-muted-foreground">NIDN: {item.nidn} • Email: {item.email}</p>
         <p className="text-sm text-muted-foreground">
