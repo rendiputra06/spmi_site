@@ -40,15 +40,15 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::delete('/files/{id}', [UserFileController::class, 'destroy'])->name('files.destroy');
     Route::resource('media', MediaFolderController::class);
     // standar mutu routes
-    Route::resource('standar-mutu', StandarMutuController::class);
-    Route::post('standar-mutu/{standar}/indikator', [StandarMutuController::class, 'storeIndikator']);
-    Route::put('indikator/{id}', [StandarMutuController::class, 'updateIndikator']);
-    Route::delete('indikator/{id}', [StandarMutuController::class, 'destroyIndikator']);
-    Route::post('indikator/{indikator}/pertanyaan', [StandarMutuController::class, 'storePertanyaan']);
-    Route::put('pertanyaan/{id}', [StandarMutuController::class, 'updatePertanyaan']);
-    Route::delete('pertanyaan/{id}', [StandarMutuController::class, 'destroyPertanyaan']);
-    Route::post('standar-mutu/{standar}/indikator/urutan', [StandarMutuController::class, 'updateUrutanIndikator']);
-    Route::post('indikator/{indikator}/pertanyaan/urutan', [StandarMutuController::class, 'updateUrutanPertanyaan']);
+    Route::resource('standar-mutu', StandarMutuController::class)->parameters(['standar-mutu' => 'standarMutu']);
+    Route::post('standar-mutu/{standarMutu}/indikator', [StandarMutuController::class, 'storeIndikator'])->name('standar-mutu.indikator.store');
+    Route::put('indikator/{indikator}', [StandarMutuController::class, 'updateIndikator'])->name('indikator.update');
+    Route::delete('indikator/{indikator}', [StandarMutuController::class, 'destroyIndikator'])->name('indikator.destroy');
+    Route::post('indikator/{indikator}/pertanyaan', [StandarMutuController::class, 'storePertanyaan'])->name('indikator.pertanyaan.store');
+    Route::put('pertanyaan/{pertanyaan}', [StandarMutuController::class, 'updatePertanyaan'])->name('pertanyaan.update');
+    Route::delete('pertanyaan/{pertanyaan}', [StandarMutuController::class, 'destroyPertanyaan'])->name('pertanyaan.destroy');
+    Route::post('standar-mutu/{standarMutu}/indikator/urutan', [StandarMutuController::class, 'updateUrutanIndikator'])->name('standar-mutu.indikator.urutan');
+    Route::post('indikator/{indikator}/pertanyaan/urutan', [StandarMutuController::class, 'updateUrutanPertanyaan'])->name('indikator.pertanyaan.urutan');
 });
 
 require __DIR__ . '/settings.php';

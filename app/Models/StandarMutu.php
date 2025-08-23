@@ -13,4 +13,9 @@ class StandarMutu extends Model
     {
         return $this->hasMany(Indikator::class, 'standar_id')->orderBy('urutan');
     }
+
+    public function pertanyaan()
+    {
+        return $this->hasManyThrough(Pertanyaan::class, Indikator::class, 'standar_id', 'indikator_id');
+    }
 }

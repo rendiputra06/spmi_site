@@ -59,4 +59,48 @@ export interface Permission {
     created_at?: string;
     updated_at?: string;
   }
-  
+
+export interface Pertanyaan {
+    id: number;
+    indikator_id: number;
+    isi: string;
+    urutan: number;
+}
+
+export interface Indikator {
+    id: number;
+    standar_id: number;
+    nama: string;
+    urutan: number;
+    pertanyaan: Pertanyaan[];
+}
+
+export interface StandarMutu {
+    id: number;
+    kode: string;
+    nama: string;
+    deskripsi: string | null;
+    status: boolean;
+    jumlah_indikator?: number;
+    jumlah_pertanyaan?: number;
+    indikator?: Indikator[];
+}
+
+export interface PaginatedResponse<T> {
+    data: T[];
+    links: {
+        url: string | null;
+        label: string;
+        active: boolean;
+    }[];
+    current_page: number;
+    per_page: number;
+    total: number;
+    from: number;
+    to: number;
+    next_page_url: string | null;
+    prev_page_url: string | null;
+    path: string;
+    last_page: number;
+    last_page_url: string;
+}

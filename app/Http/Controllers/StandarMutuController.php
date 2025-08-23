@@ -2,138 +2,135 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreIndikatorRequest;
+use App\Http\Requests\StorePertanyaanRequest;
+use App\Http\Requests\StoreStandarMutuRequest;
+use App\Http\Requests\UpdateIndikatorRequest;
+use App\Http\Requests\UpdatePertanyaanRequest;
+use App\Http\Requests\UpdateStandarMutuRequest;
 use App\Models\StandarMutu;
 use App\Models\Indikator;
 use App\Models\Pertanyaan;
 use Illuminate\Http\Request;
+use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Inertia\Inertia;
 
 class StandarMutuController extends Controller
 {
+    use AuthorizesRequests;
+
     public function index(Request $request)
     {
+        $this->authorize('viewAny', StandarMutu::class);
         $search = $request->input('search');
         $query = StandarMutu::query();
         if ($search) {
-            $query->where('kode', 'like', "%$search%")
-                ->orWhere('nama', 'like', "%$search%")
-                ->orWhere('deskripsi', 'like', "%$search%");
+            $query->where('kode', 'like', "%{$search}%")->orWhere('nama', 'like', "%{$search}%");
         }
-        $standar = $query->withCount(['indikator as jumlah_indikator', 'indikator as jumlah_pertanyaan' => function ($q) {
-            $q->withCount('pertanyaan');
-        }])
-            ->paginate(10);
+        $standar = $query->withCount(['indikator as jumlah_indikator', 'pertanyaan as jumlah_pertanyaan'])
+            ->paginate(10)
+            ->withQueryString();
+
         return Inertia::render('standar-mutu/Index', [
             'standar' => $standar,
             'search' => $search,
+            'flash' => fn () => $request->session()->get('success') ? ['success' => $request->session()->get('success')] : null,
         ]);
     }
 
-    public function show($id)
+    public function show(StandarMutu $standarMutu)
     {
-        $standar = StandarMutu::with(['indikator.pertanyaan'])->findOrFail($id);
+        $this->authorize('view', $standarMutu);
+        $standarMutu->load('indikator.pertanyaan');
         return Inertia::render('standar-mutu/Detail', [
-            'standar' => $standar,
+            'standar' => $standarMutu,
+            'flash' => fn () => session()->get('success') ? ['success' => session()->get('success')] : null,
         ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreStandarMutuRequest $request)
     {
-        $data = $request->validate([
-            'kode' => 'required|string|unique:standar_mutu,kode',
-            'nama' => 'required|string',
-            'deskripsi' => 'nullable|string',
-            'status' => 'boolean',
-        ]);
-        StandarMutu::create($data);
-        return redirect()->route('standar-mutu.index');
+        StandarMutu::create($request->validated());
+        return redirect()->route('standar-mutu.index')->with('success', 'Standar Mutu berhasil ditambahkan.');
     }
 
-    public function update(Request $request, $id)
+    public function update(UpdateStandarMutuRequest $request, StandarMutu $standarMutu)
     {
-        $data = $request->validate([
-            'kode' => 'required|string|unique:standar_mutu,kode,' . $id,
-            'nama' => 'required|string',
-            'deskripsi' => 'nullable|string',
-            'status' => 'boolean',
-        ]);
-        StandarMutu::findOrFail($id)->update($data);
-        return redirect()->route('standar-mutu.index');
+        $standarMutu->update($request->validated());
+        return redirect()->route('standar-mutu.index')->with('success', 'Standar Mutu berhasil diperbarui.');
     }
 
-    public function destroy($id)
+    public function destroy(StandarMutu $standarMutu)
     {
-        StandarMutu::findOrFail($id)->delete();
-        return redirect()->route('standar-mutu.index');
+        $this->authorize('delete', $standarMutu);
+        $standarMutu->delete();
+        return redirect()->route('standar-mutu.index')->with('success', 'Standar Mutu berhasil dihapus.');
     }
 
     // CRUD Indikator
-    public function storeIndikator(Request $request, $standarId)
+    public function storeIndikator(StoreIndikatorRequest $request, StandarMutu $standarMutu)
     {
-        $data = $request->validate([
-            'nama' => 'required|string',
+        $standarMutu->indikator()->create([
+            'nama' => $request->validated('nama'),
+            'urutan' => $standarMutu->indikator()->max('urutan') + 1,
         ]);
-        Indikator::create([
-            'standar_id' => $standarId,
-            'nama' => $data['nama'],
-            'urutan' => Indikator::where('standar_id', $standarId)->max('urutan') + 1,
-        ]);
-        return back();
+        return back()->with('success', 'Indikator berhasil ditambahkan.');
     }
-    public function updateIndikator(Request $request, $id)
+
+    public function updateIndikator(UpdateIndikatorRequest $request, Indikator $indikator)
     {
-        $data = $request->validate([
-            'nama' => 'required|string',
-        ]);
-        Indikator::findOrFail($id)->update($data);
-        return back();
+        $indikator->update($request->validated());
+        return back()->with('success', 'Indikator berhasil diperbarui.');
     }
-    public function destroyIndikator($id)
+
+    public function destroyIndikator(Indikator $indikator)
     {
-        Indikator::findOrFail($id)->delete();
-        return back();
+        $this->authorize('update', $indikator->standar);
+        $indikator->delete();
+        return back()->with('success', 'Indikator berhasil dihapus.');
     }
 
     // CRUD Pertanyaan
-    public function storePertanyaan(Request $request, $indikatorId)
+    public function storePertanyaan(StorePertanyaanRequest $request, Indikator $indikator)
     {
-        $data = $request->validate([
-            'isi' => 'required|string',
+        $indikator->pertanyaan()->create([
+            'isi' => $request->validated('isi'),
+            'urutan' => $indikator->pertanyaan()->max('urutan') + 1,
         ]);
-        Pertanyaan::create([
-            'indikator_id' => $indikatorId,
-            'isi' => $data['isi'],
-            'urutan' => Pertanyaan::where('indikator_id', $indikatorId)->max('urutan') + 1,
-        ]);
-        return back();
-    }
-    public function updatePertanyaan(Request $request, $id)
-    {
-        $data = $request->validate([
-            'isi' => 'required|string',
-        ]);
-        Pertanyaan::findOrFail($id)->update($data);
-        return back();
-    }
-    public function destroyPertanyaan($id)
-    {
-        Pertanyaan::findOrFail($id)->delete();
-        return back();
+        return back()->with('success', 'Pertanyaan berhasil ditambahkan.');
     }
 
-    // Update urutan indikator/pertanyaan (drag-and-drop)
-    public function updateUrutanIndikator(Request $request, $standarId)
+    public function updatePertanyaan(UpdatePertanyaanRequest $request, Pertanyaan $pertanyaan)
     {
-        foreach ($request->input('urutan') as $id => $urutan) {
-            Indikator::where('id', $id)->where('standar_id', $standarId)->update(['urutan' => $urutan]);
-        }
-        return back();
+        $pertanyaan->update($request->validated());
+        return back()->with('success', 'Pertanyaan berhasil diperbarui.');
     }
-    public function updateUrutanPertanyaan(Request $request, $indikatorId)
+
+    public function destroyPertanyaan(Pertanyaan $pertanyaan)
     {
-        foreach ($request->input('urutan') as $id => $urutan) {
-            Pertanyaan::where('id', $id)->where('indikator_id', $indikatorId)->update(['urutan' => $urutan]);
+        $this->authorize('update', $pertanyaan->indikator->standar);
+        $pertanyaan->delete();
+        return back()->with('success', 'Pertanyaan berhasil dihapus.');
+    }
+
+    // Update urutan
+    public function updateUrutanIndikator(Request $request, StandarMutu $standarMutu)
+    {
+        $this->authorize('update', $standarMutu);
+        $validated = $request->validate(['urutan' => 'required|array', 'urutan.*.id' => 'required|exists:indikator,id', 'urutan.*.urutan' => 'required|integer']);
+        foreach ($validated['urutan'] as $item) {
+            Indikator::where('id', $item['id'])->where('standar_id', $standarMutu->id)->update(['urutan' => $item['urutan']]);
         }
-        return back();
+        return back()->with('success', 'Urutan indikator berhasil diperbarui.');
+    }
+
+    public function updateUrutanPertanyaan(Request $request, Indikator $indikator)
+    {
+        $this->authorize('update', $indikator->standar);
+        $validated = $request->validate(['urutan' => 'required|array', 'urutan.*.id' => 'required|exists:pertanyaan,id', 'urutan.*.urutan' => 'required|integer']);
+        foreach ($validated['urutan'] as $item) {
+            Pertanyaan::where('id', $item['id'])->where('indikator_id', $indikator->id)->update(['urutan' => $item['urutan']]);
+        }
+        return back()->with('success', 'Urutan pertanyaan berhasil diperbarui.');
     }
 }
