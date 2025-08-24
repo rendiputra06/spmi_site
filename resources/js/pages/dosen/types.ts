@@ -3,8 +3,9 @@ export type Dosen = {
   nidn: string;
   nama: string;
   email: string;
+  unit_id?: number | null;
+  unit?: { id: number; nama: string; tipe?: string } | null;
   user_id?: number | null;
-  prodi?: string | null;
   jabatan?: string | null;
   pangkat_golongan?: string | null;
   pendidikan_terakhir?: string | null;
@@ -17,7 +18,7 @@ export type DosenFormData = {
   nidn: string;
   nama: string;
   email: string;
-  prodi?: string;
+  unit_id?: number | '';
   jabatan?: string;
   pangkat_golongan?: string;
   pendidikan_terakhir?: string;

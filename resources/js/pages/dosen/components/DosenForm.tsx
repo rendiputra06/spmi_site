@@ -15,11 +15,13 @@ type Props = {
   isEdit?: boolean;
   roles?: string[]; // available roles from backend
   isLinked?: boolean; // whether dosen already linked to a user
+  unitOptions?: { id: number; nama: string; tipe?: string }[];
 };
 
-export function DosenForm({ data, setData, errors, processing, onSubmit, onCancel, isEdit, roles = [], isLinked = false }: Props) {
+export function DosenForm({ data, setData, errors, processing, onSubmit, onCancel, isEdit, roles = [], isLinked = false, unitOptions = [] }: Props) {
   return (
     <form onSubmit={onSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       <div className="grid gap-2">
         <Label htmlFor="dosen-nidn">NIDN</Label>
         <Input
@@ -61,15 +63,22 @@ export function DosenForm({ data, setData, errors, processing, onSubmit, onCance
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="dosen-prodi">Program Studi</Label>
-        <Input
-          id="dosen-prodi"
-          value={data.prodi || ''}
-          onChange={(e) => setData('prodi', e.target.value)}
-          placeholder="Contoh: Informatika"
+        <Label htmlFor="dosen-unit">Unit</Label>
+        <select
+          id="dosen-unit"
+          className="border rounded h-9 px-3"
+          value={(data.unit_id as number) || ''}
+          onChange={(e) => setData('unit_id', e.target.value ? Number(e.target.value) : '')}
           disabled={processing}
-        />
-        <InputError message={errors.prodi} />
+        >
+          <option value="">Tidak ada</option>
+          {unitOptions.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.nama} {u.tipe ? `(${u.tipe})` : ''}
+            </option>
+          ))}
+        </select>
+        <InputError message={errors.unit_id as unknown as string} />
       </div>
 
       <div className="grid gap-2">
@@ -121,6 +130,7 @@ export function DosenForm({ data, setData, errors, processing, onSubmit, onCance
           <option value="0">Non-aktif</option>
         </select>
         <InputError message={errors.status as unknown as string} />
+      </div>
       </div>
 
       {/* Opsi Akun Pengguna */}

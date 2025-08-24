@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Dosen;
 use App\Models\User;
+use App\Models\Unit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -15,24 +16,30 @@ class DosenController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
-        $query = Dosen::query();
+        $unitId = $request->input('unit_id');
+        $query = Dosen::query()->with(['unit']);
         if ($search) {
             $query->where(function($q) use ($search) {
                 $q->where('nidn', 'like', "%$search%")
                   ->orWhere('nama', 'like', "%$search%")
                   ->orWhere('email', 'like', "%$search%")
-                  ->orWhere('prodi', 'like', "%$search%")
                   ->orWhere('jabatan', 'like', "%$search%")
                   ->orWhere('pangkat_golongan', 'like', "%$search%")
                   ->orWhere('pendidikan_terakhir', 'like', "%$search%");
             });
         }
+        if ($unitId) {
+            $query->where('unit_id', $unitId);
+        }
         $dosen = $query->orderBy('nama')->paginate(10);
         $roles = \Spatie\Permission\Models\Role::query()->orderBy('name')->pluck('name');
+        $unitOptions = Unit::select('id', 'nama', 'tipe')->orderBy('nama')->get();
         return Inertia::render('dosen/Index', [
             'dosen' => $dosen,
             'search' => $search,
+            'unit_id' => $unitId,
             'roles' => $roles,
+            'unit_options' => $unitOptions,
         ]);
     }
 
@@ -42,7 +49,7 @@ class DosenController extends Controller
             'nidn' => 'required|string|unique:dosen,nidn',
             'nama' => 'required|string',
             'email' => 'required|email|unique:dosen,email',
-            'prodi' => 'nullable|string',
+            'unit_id' => 'nullable|exists:units,id',
             'jabatan' => 'nullable|string',
             'pangkat_golongan' => 'nullable|string',
             'pendidikan_terakhir' => 'nullable|string',
@@ -93,7 +100,7 @@ class DosenController extends Controller
             'nidn' => 'required|string|unique:dosen,nidn,' . $d->id,
             'nama' => 'required|string',
             'email' => 'required|email|unique:dosen,email,' . $d->id,
-            'prodi' => 'nullable|string',
+            'unit_id' => 'nullable|exists:units,id',
             'jabatan' => 'nullable|string',
             'pangkat_golongan' => 'nullable|string',
             'pendidikan_terakhir' => 'nullable|string',

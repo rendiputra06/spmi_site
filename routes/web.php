@@ -17,6 +17,7 @@ use App\Http\Controllers\UnitController;
 use App\Http\Controllers\PeriodeController;
 use App\Http\Controllers\AuditSessionController;
 use App\Http\Controllers\AuditSessionDetailController;
+use App\Http\Controllers\DocumentsController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -68,6 +69,10 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::delete('standar-mutu/{standar}/indikator/{indikator}/pertanyaan/{id}', [StandarMutuController::class, 'destroyPertanyaan']);
     Route::post('standar-mutu/{standar}/indikator/urutan', [StandarMutuController::class, 'updateUrutanIndikator']);
     Route::post('indikator/{indikator}/pertanyaan/urutan', [StandarMutuController::class, 'updateUrutanPertanyaan']);
+
+    // documents management
+    Route::resource('documents', DocumentsController::class)->only(['index','store','update','destroy']);
+    Route::get('documents/{document}/download', [DocumentsController::class, 'download'])->name('documents.download');
 });
 
 require __DIR__ . '/settings.php';

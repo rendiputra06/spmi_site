@@ -47,6 +47,7 @@ class RolePermissionSeeder extends Seeder
             ],
             'Audit' => [
                 'audit-internal-view',
+                'documents-view',
             ],
         ];
 

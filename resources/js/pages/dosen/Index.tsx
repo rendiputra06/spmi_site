@@ -17,15 +17,18 @@ interface DosenIndexProps {
     last_page: number;
   };
   search?: string;
+  unit_id?: number | string | null;
   status?: string;
   error?: string;
   roles?: string[];
+  unit_options?: { id: number; nama: string; tipe?: string }[];
 }
 
 type ModalType = 'add' | 'edit' | 'delete' | null;
 
-export default function DosenIndex({ dosen, search, status, roles = [] }: DosenIndexProps) {
+export default function DosenIndex({ dosen, search, unit_id, status, roles = [], unit_options = [] }: DosenIndexProps) {
   const [query, setQuery] = useState(search || '');
+  const [unitFilter, setUnitFilter] = useState<string>(unit_id ? String(unit_id) : '');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [recentlySuccessful, setRecentlySuccessful] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -37,7 +40,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
     nidn: '',
     nama: '',
     email: '',
-    prodi: '',
+    unit_id: '',
     jabatan: '',
     pangkat_golongan: '',
     pendidikan_terakhir: '',
@@ -50,10 +53,10 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (query !== search) {
+    if (query !== search || (unitFilter || '') !== (unit_id ? String(unit_id) : '')) {
       router.get(
         '/dosen',
-        { search: query },
+        { search: query, ...(unitFilter ? { unit_id: unitFilter } : {}) },
         {
           preserveState: true,
           preserveScroll: true,
@@ -65,7 +68,8 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
   const handleResetSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     setQuery('');
-    if (search) {
+    setUnitFilter('');
+    if (search || unit_id) {
       router.get(
         '/dosen',
         {},
@@ -81,6 +85,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
 
   const openAddModal = () => {
     reset();
+    setData('unit_id', '');
     setData('create_user', false);
     setData('send_invite', false);
     setData('user_roles', []);
@@ -94,7 +99,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
     setData('nidn', row.nidn);
     setData('nama', row.nama);
     setData('email', row.email);
-    setData('prodi', row.prodi || '');
+    setData('unit_id', (row.unit_id as number) || '');
     setData('jabatan', row.jabatan || '');
     setData('pangkat_golongan', row.pangkat_golongan || '');
     setData('pendidikan_terakhir', row.pendidikan_terakhir || '');
@@ -135,7 +140,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
     if (page < 1 || page > dosen.last_page || page === dosen.current_page) return;
     router.get(
       '/dosen',
-      { page, ...(query ? { search: query } : {}) },
+      { page, ...(query ? { search: query } : {}), ...(unitFilter ? { unit_id: unitFilter } : {}) },
       { preserveState: true, preserveScroll: true, replace: true }
     );
   };
@@ -152,6 +157,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
     if (modalType === 'add') {
       transform((payload) => ({
         ...payload,
+        unit_id: payload.unit_id === '' ? undefined : payload.unit_id,
         user_roles: payload.user_roles && payload.user_roles.length ? payload.user_roles : undefined,
         password: payload.password ? payload.password : undefined,
       }));
@@ -165,6 +171,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
     } else if (modalType === 'edit' && editId) {
       transform((payload) => ({
         ...payload,
+        unit_id: payload.unit_id === '' ? undefined : payload.unit_id,
         user_roles: payload.user_roles && payload.user_roles.length ? payload.user_roles : undefined,
         password: payload.password ? payload.password : undefined,
       }));
@@ -203,19 +210,37 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
-                  placeholder="Cari dosen (nama, nidn, email, prodi)..."
+                  placeholder="Cari dosen (nama, nidn, email)..."
                   className="w-full pl-9"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 />
               </div>
+              <div className="flex-1 sm:max-w-xs">
+                <select
+                  className="w-full border rounded h-9 px-3"
+                  value={unitFilter}
+                  onChange={(e) => setUnitFilter(e.target.value)}
+                >
+                  <option value="">Semua Unit</option>
+                  {unit_options.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.nama} {u.tipe ? `(${u.tipe})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={handleSearch} disabled={processing}>
                   <Search className="mr-2 h-4 w-4" />
                   Cari
                 </Button>
-                <Button variant="outline" onClick={handleResetSearch} disabled={!query && !search}>
+                <Button
+                  variant="outline"
+                  onClick={handleResetSearch}
+                  disabled={!query && !search && !unitFilter && !unit_id}
+                >
                   Reset
                 </Button>
               </div>
@@ -283,7 +308,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
             isDialogOpen && modalType !== 'delete' ? 'block' : 'hidden'
           }`}
         >
-          <div className="mx-4 w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
+          <div className="mx-4 w-full max-w-4xl rounded-lg bg-background p-6 shadow-lg max-h-[85vh] overflow-y-auto">
             <h2 className="mb-6 text-xl font-semibold">{modalType === 'add' ? 'Tambah' : 'Edit'} Dosen</h2>
 
             <DosenForm
@@ -299,6 +324,7 @@ export default function DosenIndex({ dosen, search, status, roles = [] }: DosenI
               isEdit={modalType === 'edit'}
               roles={roles}
               isLinked={editingLinked}
+              unitOptions={unit_options}
             />
           </div>
         </div>

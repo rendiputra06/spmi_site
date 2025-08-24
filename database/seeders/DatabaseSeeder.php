@@ -12,9 +12,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             RolePermissionSeeder::class,
-            StandarMutuSeeder::class,
-            DosenSeeder::class,
             UnitSeeder::class,
+            DosenSeeder::class,
+            StandarMutuSeeder::class,
             PeriodeAndAuditSessionSeeder::class,
         ]);
 
@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call([
             MenuSeeder::class,
+            DocumentSeeder::class,
         ]);
     }
 }

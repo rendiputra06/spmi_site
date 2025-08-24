@@ -128,8 +128,8 @@ class MenuSeeder extends Seeder
             'parent_id' => $utilities->id,
         ]);
 
-        
-        
+
+
         // GROUP: Audit
         $audit_group = Menu::create([
             'title' => 'Audit',
@@ -138,7 +138,7 @@ class MenuSeeder extends Seeder
             'order' => 6,
             'permission_name' => 'audit-internal-view',
         ]);
-        
+
         Menu::create([
             'title' => 'Standar Mutu',
             'icon' => 'CheckCircle',
@@ -154,7 +154,7 @@ class MenuSeeder extends Seeder
             'permission_name' => 'audit-internal-view',
             'parent_id' => $audit_group->id,
         ]);
-        
+
         Menu::create([
             'title' => 'Dosen',
             'icon' => 'UserCircle',
@@ -163,7 +163,7 @@ class MenuSeeder extends Seeder
             'permission_name' => 'dosen-view',
             'parent_id' => $master_data->id,
         ]);
-        
+
         Menu::create([
             'title' => 'Units',
             'icon' => 'Building2',
@@ -181,7 +181,15 @@ class MenuSeeder extends Seeder
             'permission_name' => 'periodes-view',
             'parent_id' => $master_data->id,
         ]);
-        
+
+        Menu::create([
+            'title' => 'Documents',
+            'icon' => 'FileText',
+            'route' => '/documents',
+            'order' => 8,
+            'permission_name' => 'documents-view',
+        ]);
+
         $permissions = Menu::pluck('permission_name')->unique()->filter();
 
         foreach ($permissions as $permName) {

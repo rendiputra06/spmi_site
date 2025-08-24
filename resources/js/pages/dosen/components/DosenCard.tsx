@@ -29,7 +29,7 @@ export function DosenCard({ item, index, currentPage, perPage, onEdit, onDelete 
         </div>
         <p className="text-sm text-muted-foreground">NIDN: {item.nidn} • Email: {item.email}</p>
         <p className="text-sm text-muted-foreground">
-          Prodi: {item.prodi || '-'} • Jabatan: {item.jabatan || '-'} • Pangkat: {item.pangkat_golongan || '-'} • Pendidikan: {item.pendidikan_terakhir || '-'}
+          Unit: {item.unit?.nama || '-'} • Jabatan: {item.jabatan || '-'} • Pangkat: {item.pangkat_golongan || '-'} • Pendidikan: {item.pendidikan_terakhir || '-'}
         </p>
       </div>
       <div className="flex gap-2">

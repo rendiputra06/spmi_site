@@ -15,8 +15,8 @@ class Dosen extends Model
         'nidn',
         'nama',
         'email',
+        'unit_id',
         'user_id',
-        'prodi',
         'jabatan',
         'pangkat_golongan',
         'pendidikan_terakhir',
@@ -30,5 +30,10 @@ class Dosen extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function unit()
+    {
+        return $this->belongsTo(Unit::class);
     }
 }
