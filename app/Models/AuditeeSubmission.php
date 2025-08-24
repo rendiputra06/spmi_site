@@ -61,4 +61,9 @@ class AuditeeSubmission extends Model
     {
         return $this->belongsTo(Pertanyaan::class, 'pertanyaan_id');
     }
+
+    public function auditorReview()
+    {
+        return $this->hasOne(AuditorReview::class, 'auditee_submission_id');
+    }
 }

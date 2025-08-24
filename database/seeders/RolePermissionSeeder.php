@@ -10,8 +10,9 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Buat role admin dan user jika belum ada
+        // Buat role admin, auditor dan user jika belum ada
         $admin = Role::firstOrCreate(['name' => 'admin']);
+        $auditor = Role::firstOrCreate(['name' => 'auditor']);
         $user = Role::firstOrCreate(['name' => 'user']);
 
         // Daftar permission berdasarkan menu structure
@@ -49,6 +50,7 @@ class RolePermissionSeeder extends Seeder
                 'audit-internal-view',
                 'audit-internal-manage',
                 'auditee-submission-view',
+                'auditee-submission-review',
                 'documents-view',
             ],
         ];
@@ -69,6 +71,13 @@ class RolePermissionSeeder extends Seeder
                 if (in_array($name, ['documents-view', 'audit-internal-view', 'auditee-submission-view'])) {
                     if (!$user->hasPermissionTo($permission)) {
                         $user->givePermissionTo($permission);
+                    }
+                }
+
+                // Assign minimal ke auditor (hanya akses yang dibutuhkan auditor)
+                if (in_array($name, ['dashboard-view', 'documents-view', 'audit-internal-view', 'auditee-submission-review'])) {
+                    if (!$auditor->hasPermissionTo($permission)) {
+                        $auditor->givePermissionTo($permission);
                     }
                 }
             }

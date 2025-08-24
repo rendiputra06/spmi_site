@@ -1,9 +1,9 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import type { AuditSession } from '../types';
+import type { AuditSession, CanFlags } from '../types';
 import dayjs from 'dayjs';
 
-export type CanFlags = { manage: boolean; respond: boolean } | undefined;
+// Using CanFlags from types
 
 const computeStatus = (row: AuditSession) => {
   const now = dayjs();
@@ -29,9 +29,10 @@ interface SessionListProps {
   onConfirmDelete: (row: AuditSession) => void;
   onGoToPage: (page: number) => void;
   onOpenRespond: (row: AuditSession) => void;
+  onOpenReview: (row: AuditSession) => void;
 }
 
-export default function SessionList({ sessions, can, onOpenDetail, onOpenEdit, onConfirmDelete, onGoToPage, onOpenRespond }: SessionListProps) {
+export default function SessionList({ sessions, can, onOpenDetail, onOpenEdit, onConfirmDelete, onGoToPage, onOpenRespond, onOpenReview }: SessionListProps) {
   if (sessions.data.length === 0) {
     return null;
   }
@@ -59,9 +60,11 @@ export default function SessionList({ sessions, can, onOpenDetail, onOpenEdit, o
                     <Button variant="destructive" size="sm" onClick={() => onConfirmDelete(row)}>Hapus</Button>
                   </>
                 )}
-                {can?.respond && (
+                {can?.review ? (
+                  <Button size="sm" onClick={() => onOpenReview(row)}>Buka Review</Button>
+                ) : can?.respond ? (
                   <Button size="sm" onClick={() => onOpenRespond(row)}>Buka Respon</Button>
-                )}
+                ) : null}
               </div>
             </div>
           );

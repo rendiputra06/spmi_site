@@ -83,6 +83,10 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('auditee-submissions/{submission}/detach-documents', [AuditeeSubmissionController::class, 'detachDocuments']);
     Route::post('audit-internal/{session}/auditee-submissions/submit', [AuditeeSubmissionController::class, 'submit']);
     Route::get('auditee-submissions/{submission}/documents', [AuditeeSubmissionController::class, 'documents']);
+
+    // Auditor review routes
+    Route::get('audit-internal/{session}/auditee-review', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'index']);
+    Route::post('auditee-submissions/{submission}/review', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'review']);
 });
 
 require __DIR__ . '/settings.php';

@@ -30,6 +30,8 @@ export type UnitOption = { id: number; nama: string; tipe: string };
 
 export type AuditorOption = { id: number; nama: string; nidn?: string };
 
+export type CanFlags = { manage: boolean; respond: boolean; review?: boolean };
+
 export type Pertanyaan = { id: number; isi: string; urutan: number };
 export type Indikator = {
   id: number;

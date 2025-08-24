@@ -4,7 +4,7 @@ import AppLayout from '@/layouts/app-layout';
 import { router, useForm } from '@inertiajs/react';
 import { Search, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
-import type { AuditSession, AuditSessionFormData, Option } from './types';
+import type { AuditSession, AuditSessionFormData, Option, CanFlags } from './types';
 import SessionList from './components/SessionList';
 import SessionFormDialog from './components/SessionFormDialog';
 
@@ -18,7 +18,7 @@ interface AMIIndexProps {
   };
   search?: string;
   periode_options: Option[];
-  can?: { manage: boolean; respond: boolean };
+  can?: CanFlags;
 }
 
 type ModalType = 'add' | 'edit' | 'delete' | null;
@@ -199,6 +199,7 @@ export default function AMIIndex({ sessions, search, periode_options, can }: AMI
               onConfirmDelete={(row) => confirmDelete(row)}
               onGoToPage={(page) => goToPage(page)}
               onOpenRespond={(row) => router.get(`/audit-internal/${row.id}/auditee-submissions`)}
+              onOpenReview={(row) => router.get(`/audit-internal/${row.id}/auditee-review`)}
             />
           )}
 

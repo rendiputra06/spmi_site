@@ -24,16 +24,20 @@ class AuditSessionController extends Controller
         $user = $request->user();
         $isManage = $user?->can('audit-internal-manage') ?? false;
         $canRespond = $user?->can('auditee-submission-view') ?? false;
+        $canReview = $user?->can('auditee-submission-review') ?? false;
 
         if (!$isManage) {
             // Determine user's unit (adjust if your app stores unit differently)
             $unitId = $user?->dosen?->unit_id;
 
             $query->where(function($q) use ($user, $unitId) {
-                // Auditor assignment: session units where this user is listed as auditor
-                $q->whereHas('units.auditors', function ($qa) use ($user) {
-                    $qa->where('user_id', $user->id);
-                });
+                // Auditor assignment: match via dosen_id of current user
+                $dosenId = optional($user->dosen)->id;
+                if ($dosenId) {
+                    $q->whereHas('units.auditors', function ($qa) use ($dosenId) {
+                        $qa->where('dosen_id', $dosenId);
+                    });
+                }
 
                 // Auditee by unit assignment: session units matching user's unit
                 if ($unitId) {
@@ -59,6 +63,7 @@ class AuditSessionController extends Controller
             'can' => [
                 'manage' => $isManage,
                 'respond' => $canRespond,
+                'review' => $canReview,
             ],
         ]);
     }

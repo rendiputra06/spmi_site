@@ -25,7 +25,7 @@ class MenuSeeder extends Seeder
             'title' => 'Access',
             'icon' => 'Contact',
             'route' => '#',
-            'order' => 2,
+            'order' => 20,
             'permission_name' => 'access-view',
         ]);
 
@@ -33,7 +33,7 @@ class MenuSeeder extends Seeder
             'title' => 'Permissions',
             'icon' => 'AlertOctagon',
             'route' => '/permissions',
-            'order' => 2,
+            'order' => 21,
             'permission_name' => 'permission-view',
             'parent_id' => $access->id,
         ]);
@@ -42,7 +42,7 @@ class MenuSeeder extends Seeder
             'title' => 'Users',
             'icon' => 'Users',
             'route' => '/users',
-            'order' => 3,
+            'order' => 22,
             'permission_name' => 'users-view',
             'parent_id' => $access->id,
         ]);
@@ -51,7 +51,7 @@ class MenuSeeder extends Seeder
             'title' => 'Roles',
             'icon' => 'AlertTriangle',
             'route' => '/roles',
-            'order' => 4,
+            'order' => 24,
             'permission_name' => 'roles-view',
             'parent_id' => $access->id,
         ]);
@@ -61,7 +61,7 @@ class MenuSeeder extends Seeder
             'title' => 'Settings',
             'icon' => 'Settings',
             'route' => '#',
-            'order' => 3,
+            'order' => 30,
             'permission_name' => 'settings-view',
         ]);
 
@@ -69,7 +69,7 @@ class MenuSeeder extends Seeder
             'title' => 'Menu Manager',
             'icon' => 'Menu',
             'route' => '/menus',
-            'order' => 1,
+            'order' => 31,
             'permission_name' => 'menu-view',
             'parent_id' => $settings->id,
         ]);
@@ -78,7 +78,7 @@ class MenuSeeder extends Seeder
             'title' => 'App Settings',
             'icon' => 'AtSign',
             'route' => '/settingsapp',
-            'order' => 2,
+            'order' => 32,
             'permission_name' => 'app-settings-view',
             'parent_id' => $settings->id,
         ]);
@@ -97,18 +97,10 @@ class MenuSeeder extends Seeder
             'title' => 'Utilities',
             'icon' => 'CreditCard',
             'route' => '#',
-            'order' => 4,
+            'order' => 40,
             'permission_name' => 'utilities-view',
         ]);
 
-        // GROUP: Master Data
-        $master_data = Menu::create([
-            'title' => 'Master Data',
-            'icon' => 'CreditCard',
-            'route' => '#',
-            'order' => 5,
-            'permission_name' => 'master-data-view',
-        ]);
 
         Menu::create([
             'title' => 'Audit Logs',
@@ -127,19 +119,27 @@ class MenuSeeder extends Seeder
             'permission_name' => 'filemanager-view',
             'parent_id' => $utilities->id,
         ]);
+        // GROUP: Master Data
+        $master_data = Menu::create([
+            'title' => 'Master Data',
+            'icon' => 'CreditCard',
+            'route' => '#',
+            'order' => 5,
+            'permission_name' => 'master-data-view',
+        ]);
 
         Menu::create([
             'title' => 'Standar Mutu',
             'icon' => 'CheckCircle',
             'route' => '/standar-mutu',
-            'order' => 1,
+            'order' => 2,
             'permission_name' => 'standar-mutu-view',
         ]);
         Menu::create([
             'title' => 'Audit Mutu Internal',
             'icon' => 'ClipboardCheck',
             'route' => '/audit-internal',
-            'order' => 2,
+            'order' => 3,
             'permission_name' => 'audit-internal-view',
         ]);
 
@@ -147,7 +147,7 @@ class MenuSeeder extends Seeder
             'title' => 'Dosen',
             'icon' => 'UserCircle',
             'route' => '/dosen',
-            'order' => 5,
+            'order' => 2,
             'permission_name' => 'dosen-view',
             'parent_id' => $master_data->id,
         ]);
@@ -156,7 +156,7 @@ class MenuSeeder extends Seeder
             'title' => 'Units',
             'icon' => 'Building2',
             'route' => '/units',
-            'order' => 6,
+            'order' => 3,
             'permission_name' => 'units-view',
             'parent_id' => $master_data->id,
         ]);
@@ -165,7 +165,7 @@ class MenuSeeder extends Seeder
             'title' => 'Periode',
             'icon' => 'CalendarRange',
             'route' => '/periodes',
-            'order' => 7,
+            'order' => 4,
             'permission_name' => 'periodes-view',
             'parent_id' => $master_data->id,
         ]);
@@ -174,7 +174,7 @@ class MenuSeeder extends Seeder
             'title' => 'Documents',
             'icon' => 'FileText',
             'route' => '/documents',
-            'order' => 8,
+            'order' => 4,
             'permission_name' => 'documents-view',
         ]);
 
