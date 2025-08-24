@@ -25,7 +25,11 @@ interface StandarMutuCardProps {
 
 export function StandarMutuCard({ item, onEdit, onDelete, index, currentPage, perPage }: StandarMutuCardProps) {
     const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-    const totalQuestions = item.indikator?.reduce((sum, i) => sum + (i.pertanyaan?.length ?? 0), 0) ?? 0;
+    // Gunakan jumlah_pertanyaan dari backend jika tersedia (index view),
+    // fallback ke menghitung dari relasi indikator->pertanyaan (detail view)
+    const totalQuestions =
+        item.jumlah_pertanyaan ??
+        (item.indikator?.reduce((sum, i) => sum + (i.pertanyaan?.length ?? 0), 0) ?? 0);
 
     return (
         <div className="hover:bg-muted/50 rounded-lg border p-4 transition-colors">

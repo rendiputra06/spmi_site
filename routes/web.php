@@ -18,6 +18,7 @@ use App\Http\Controllers\PeriodeController;
 use App\Http\Controllers\AuditSessionController;
 use App\Http\Controllers\AuditSessionDetailController;
 use App\Http\Controllers\DocumentsController;
+use App\Http\Controllers\AuditeeSubmissionController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -73,6 +74,15 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     // documents management
     Route::resource('documents', DocumentsController::class)->only(['index','store','update','destroy']);
     Route::get('documents/{document}/download', [DocumentsController::class, 'download'])->name('documents.download');
+    Route::get('documents.json', [DocumentsController::class, 'jsonIndex']);
+
+    // auditee submissions (response)
+    Route::get('audit-internal/{session}/auditee-submissions', [AuditeeSubmissionController::class, 'index']);
+    Route::post('audit-internal/{session}/auditee-submissions/upsert', [AuditeeSubmissionController::class, 'upsert']);
+    Route::post('auditee-submissions/{submission}/attach-documents', [AuditeeSubmissionController::class, 'attachDocuments']);
+    Route::post('auditee-submissions/{submission}/detach-documents', [AuditeeSubmissionController::class, 'detachDocuments']);
+    Route::post('audit-internal/{session}/auditee-submissions/submit', [AuditeeSubmissionController::class, 'submit']);
+    Route::get('auditee-submissions/{submission}/documents', [AuditeeSubmissionController::class, 'documents']);
 });
 
 require __DIR__ . '/settings.php';

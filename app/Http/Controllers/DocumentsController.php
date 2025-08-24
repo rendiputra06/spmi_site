@@ -60,6 +60,57 @@ class DocumentsController extends Controller
         ]);
     }
 
+    public function jsonIndex(Request $request)
+    {
+        $user = Auth::user();
+        $search = $request->string('search')->toString();
+        $unitId = $request->input('unit_id');
+        $category = $request->string('category')->toString();
+        $status = $request->string('status')->toString();
+        $perPage = (int) $request->input('per_page', 10);
+
+        $canManageAll = method_exists($user, 'hasRole') && $user->hasRole('admin');
+        $userUnitId = optional(optional($user)->dosen)->unit_id;
+
+        $query = Document::query();
+        if (!$canManageAll && $userUnitId) {
+            $query->where('unit_id', $userUnitId);
+        } elseif ($unitId) {
+            $query->where('unit_id', $unitId);
+        }
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%$search%")
+                    ->orWhere('description', 'like', "%$search%")
+                    ->orWhere('category', 'like', "%$search%")
+                    ->orWhere('status', 'like', "%$search%");
+            });
+        }
+        if ($category) { $query->where('category', $category); }
+        if ($status) { $query->where('status', $status); }
+
+        $documents = $query->orderByDesc('created_at')->paginate($perPage);
+
+        $items = collect($documents->items())->map(function ($d) {
+            return [
+                'id' => $d->id,
+                'title' => $d->title,
+                'description' => $d->description,
+                'size' => $d->size,
+                'mime' => $d->mime,
+                'download_url' => route('documents.download', ['document' => $d->id]),
+            ];
+        });
+
+        return response()->json([
+            'data' => $items,
+            'current_page' => $documents->currentPage(),
+            'last_page' => $documents->lastPage(),
+            'per_page' => $documents->perPage(),
+            'total' => $documents->total(),
+        ]);
+    }
+
     public function store(Request $request)
     {
         $user = Auth::user();

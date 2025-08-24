@@ -1,14 +1,17 @@
 # Auditee Response Feature Plan
 
 ## Goals
-- Allow auditees (unit owners) to submit evidence/documents and self-descriptions per standard/indicator within an Audit Session.
-- Provide an auditor workflow to review/rate those submissions and give feedback.
-- Enforce unit-based access (auditee can only manage their unit), and role-based permissions.
+- Let auditees answer per-pertanyaan with documents in the active Audit Session assigned to them.
+- Keep it simple: one table view (standar > indikator > pertanyaan), attach/pick documents, then submit final (from draft).
+- Enforce unit-based access (auditee only for their unit) and basic role permissions.
 
 ## Workflow (High Level)
-1. Admin/QA creates an `AuditSession` and assigns units + auditees (users) to participate.
-2. Auditee uploads evidence and fills submission forms per standard/indicator for their unit.
-3. Auditor reviews auditee submissions, adds comments, sets scores/ratings, and status transitions.
+1. Admin/QA creates an `AuditSession` and assigns units + auditees (users).
+2. Auditee logs in. System auto-selects the active session for that auditee's unit.
+3. Auditee sees a table: Standar → Indikator → Pertanyaan. Each pertanyaan has action to upload or pick an existing Document as evidence.
+4. Auditee fills all required pertanyaan with documents. While editing: status = draft.
+5. When ready, auditee clicks Submit to finalize the responses: status = submitted (locked for auditee).
+6. Auditor process is described in `docs/AuditorResponsePlan.md`.
 
 ## Data Model
 - audit_auditee_submissions
@@ -16,14 +19,11 @@
   - audit_session_id (FK → audit_sessions)
   - unit_id (FK → units)
   - standar_mutu_id / indikator_id (FK)
-  - self_description text (uraian/penjelasan dari auditee)
-  - status enum: draft | submitted | returned | accepted (default: draft)
-  - submitted_by (FK → users)
+  - pertanyaan_id (FK → pertanyaans)
+  - note text nullable (opsional catatan auditee)
+  - status enum: draft | submitted (default: draft)
+  - submitted_by (FK → users) nullable
   - submitted_at datetime nullable
-  - reviewed_by (FK → users) nullable
-  - reviewed_at datetime nullable
-  - score decimal(5,2) nullable
-  - reviewer_note text nullable
   - timestamps, soft deletes
 
 - audit_auditee_submission_documents (pivot)
@@ -32,11 +32,11 @@
   - note nullable
 
 - Optional: audit_assignments (if not exist)
-  - id, audit_session_id, user_id, unit_id, role (auditor/auditee), timestamps
+  - id, audit_session_id, user_id, unit_id, role (auditee/auditor), timestamps
 
 Relations:
 - AuditSession hasMany AuditeeSubmission
-- AuditeeSubmission belongsTo AuditSession, Unit, StandarMutu; belongsToMany Document
+- AuditeeSubmission belongsTo AuditSession, Unit, StandarMutu, Indikator, Pertanyaan; belongsToMany Document
 - Document belongsToMany AuditeeSubmission
 
 ## Permissions & Policies
@@ -45,59 +45,46 @@ Relations:
   - auditee-submission-create
   - auditee-submission-update
   - auditee-submission-submit
-  - auditee-submission-review (auditor/QA)
 - Policies:
   - Auditee can create/update/submit only for their assigned unit and session.
-  - Auditor/QA can view all submissions for sessions they handle; can review/score and change status.
+  - Auditor permissions are covered in `AuditorResponsePlan.md`.
 
 ## Backend (Laravel)
 - Controller: AuditeeSubmissionController
-  - index(session_id, unit_id?, status?, indikator?, search?)
-  - store(session_id): create/update draft submission per indikator/standar for the unit of the logged auditee
-  - submit(submission): transition to submitted (set submitted_by/at)
-  - attachDocuments(submission, document_id[]): link evidence from Documents module
-  - review(submission): auditor sets score, reviewer_note, status → returned/accepted; set reviewed_by/at
+  - index(session_id): resolve active session for logged auditee; list tree standar→indikator→pertanyaan + submission status/doc count
+  - upsert(session_id, pertanyaan_id): create/update draft submission for the auditee’s unit
+  - attachDocuments(submission_id, document_id[]): link evidence from Documents
+  - submit(session_id): bulk mark all submissions for the unit+session as submitted; set submitted_by/at
 - Routes (nested):
   - GET /audit-internal/{session}/auditee-submissions
-  - POST /audit-internal/{session}/auditee-submissions
-  - POST /auditee-submissions/{submission}/submit
+  - POST /audit-internal/{session}/auditee-submissions/upsert
   - POST /auditee-submissions/{submission}/attach-documents
-  - POST /auditee-submissions/{submission}/review
+  - POST /audit-internal/{session}/auditee-submissions/submit
 
 ## Frontend (Inertia React + TS)
-- Auditee Page: resources/js/pages/audit-internal/AuditeeSubmissionsIndex.tsx
-  - Toolbar: search, status filter; (admin/auditor) unit filter; indikator filter
-  - List: standar/indikator, unit, status badge, evidence count, updated_at
-  - Actions: create/edit submission (modal/drawer), attach evidence, submit
-- Auditee Form:
-  - Fields: standar/indikator (select), self_description (textarea), attach evidence (picker from Documents)
-  - Status controls: Draft → Submit
-- Auditor Review Page: resources/js/pages/audit-internal/AuditeeReviewIndex.tsx (or detail route)
-  - List submissions grouped by unit/indikator with status
-  - Review Panel/Modal: score, reviewer_note, set status to returned/accepted
-  - If returned: auditee can revise and re-submit
+- Page: `resources/js/pages/audit-internal/AuditeeSubmissionsIndex.tsx`
+  - Auto-select active session for logged auditee; show unit name.
+  - Table (nested rows): Standar → Indikator → Pertanyaan.
+  - Each pertanyaan row: Evidence cell with [Upload] and [Pilih Dokumen] actions; show selected doc(s) count and preview link.
+  - Header action: [Submit Semua] to finalize (only enabled if all mandatory pertanyaan have at least one document).
 - Evidence Picker:
-  - Re-use Documents module; filter by category/status; show preview for image/PDF
+  - Re-use Documents module; filter by category/status; show preview for image/PDF.
+  - Respect unit-based access.
 
 ## Menu & Seeding
 - Menu entries under Audit group:
   - "Auditee Submissions" (auditee view) → /audit-internal/{session}/auditee-submissions
-  - (Optional) "Auditee Review" (auditor view) → /audit-internal/{session}/auditee-review
-- Seeder: create permissions above; grant to roles (admin, auditor, auditee). Optionally create an `auditee` role.
+- Seeder: create permissions above; grant to roles (admin, auditee). Optionally create an `auditee` role.
 
 ## Status Flow
-- draft (auditee editable) → submitted (locked for auditee) →
-  - returned (auditee can edit again and re-submit), or
-  - accepted (final)
+- draft (auditee editable) → submitted (locked for auditee)
 
 ## Validation & Constraints
-- Enforce one active submission per (session, unit, indikator) to prevent duplicates (unique index).
+- Enforce one active submission per (session, unit, pertanyaan) to prevent duplicates (unique index).
 - Limit document linking to unit-owned docs (or admin override).
-- Scores range validation (e.g., 0–100) during review.
 
 ## Iteration Plan
-- Iteration 1 (MVP): submissions CRUD (auditee), attach documents, submit, list/filter, basic policies
-- Iteration 2: review workflow (return/accept), scoring & notes, audit history, notifications (optional)
+- MVP: tree table + attach/pick documents + submit + basic policies
 
 ## Reuse & Consistency
 - Adopt the filtering/pagination patterns used in Documents/Dosen modules.

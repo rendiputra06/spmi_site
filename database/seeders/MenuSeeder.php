@@ -128,17 +128,6 @@ class MenuSeeder extends Seeder
             'parent_id' => $utilities->id,
         ]);
 
-
-
-        // GROUP: Audit
-        $audit_group = Menu::create([
-            'title' => 'Audit',
-            'icon' => 'ShieldCheck',
-            'route' => '#',
-            'order' => 6,
-            'permission_name' => 'audit-internal-view',
-        ]);
-
         Menu::create([
             'title' => 'Standar Mutu',
             'icon' => 'CheckCircle',
@@ -152,7 +141,6 @@ class MenuSeeder extends Seeder
             'route' => '/audit-internal',
             'order' => 2,
             'permission_name' => 'audit-internal-view',
-            'parent_id' => $audit_group->id,
         ]);
 
         Menu::create([

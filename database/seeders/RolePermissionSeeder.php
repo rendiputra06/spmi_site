@@ -47,6 +47,8 @@ class RolePermissionSeeder extends Seeder
             ],
             'Audit' => [
                 'audit-internal-view',
+                'audit-internal-manage',
+                'auditee-submission-view',
                 'documents-view',
             ],
         ];
@@ -61,6 +63,13 @@ class RolePermissionSeeder extends Seeder
                 // Assign ke admin
                 if (!$admin->hasPermissionTo($permission)) {
                     $admin->givePermissionTo($permission);
+                }
+
+                // Assign minimal ke user (auditee)
+                if (in_array($name, ['documents-view', 'audit-internal-view', 'auditee-submission-view'])) {
+                    if (!$user->hasPermissionTo($permission)) {
+                        $user->givePermissionTo($permission);
+                    }
                 }
             }
         }

@@ -5,7 +5,8 @@ import { router, useForm } from '@inertiajs/react';
 import { Search, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
 import type { AuditSession, AuditSessionFormData, Option } from './types';
-import dayjs from 'dayjs';
+import SessionList from './components/SessionList';
+import SessionFormDialog from './components/SessionFormDialog';
 
 interface AMIIndexProps {
   sessions: {
@@ -17,23 +18,12 @@ interface AMIIndexProps {
   };
   search?: string;
   periode_options: Option[];
+  can?: { manage: boolean; respond: boolean };
 }
-
-const computeStatus = (row: AuditSession) => {
-  const now = dayjs();
-  const mulai = row.tanggal_mulai ? dayjs(row.tanggal_mulai) : null;
-  const selesai = row.tanggal_selesai ? dayjs(row.tanggal_selesai) : null;
-  if (mulai && selesai) {
-    if (now.isBefore(mulai, 'day')) return { text: 'Akan datang', color: 'bg-blue-50 text-blue-700 border-blue-200' };
-    if (now.isAfter(selesai, 'day')) return { text: 'Selesai', color: 'bg-gray-50 text-gray-700 border-gray-200' };
-    return { text: 'Aktif', color: 'bg-green-50 text-green-700 border-green-200' };
-  }
-  return { text: 'Tidak diketahui', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' };
-};
 
 type ModalType = 'add' | 'edit' | 'delete' | null;
 
-export default function AMIIndex({ sessions, search, periode_options }: AMIIndexProps) {
+export default function AMIIndex({ sessions, search, periode_options, can }: AMIIndexProps) {
   const [query, setQuery] = useState(search || '');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [recentlySuccessful, setRecentlySuccessful] = useState(false);
@@ -155,7 +145,7 @@ export default function AMIIndex({ sessions, search, periode_options }: AMIIndex
               <RefreshCw className="h-4 w-4" />
               <span>Muat Ulang</span>
             </Button>
-            <Button onClick={openAddModal}>Buat Sesi</Button>
+            {can?.manage && (<Button onClick={openAddModal}>Buat Sesi</Button>)}
           </div>
         </div>
 
@@ -194,122 +184,39 @@ export default function AMIIndex({ sessions, search, periode_options }: AMIIndex
           {sessions.data.length === 0 ? (
             <div className="py-12 text-center">
               <p className="text-muted-foreground">Belum ada sesi audit</p>
-              <Button variant="outline" className="mt-4" onClick={openAddModal}>
-                + Buat Sesi
-              </Button>
+              {can?.manage && (
+                <Button variant="outline" className="mt-4" onClick={openAddModal}>
+                  + Buat Sesi
+                </Button>
+              )}
             </div>
           ) : (
-            <div className="space-y-3">
-              {sessions.data.map((row) => {
-                const status = computeStatus(row);
-                return (
-                <div key={row.id} className="flex items-start justify-between rounded-lg border p-4">
-                  <div className="space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-base font-semibold">{row.nama}</h3>
-                      <span className="rounded bg-muted px-2 py-0.5 text-xs">{row.kode}</span>
-                      <span className={`inline-flex items-center rounded border px-2 py-0.5 text-xs font-medium ${status.color}`}>{status.text}</span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Periode: {row.periode?.nama || '-'}</p>
-                    <p className="text-sm text-muted-foreground">Tanggal: {toYMD(row.tanggal_mulai)} s/d {toYMD(row.tanggal_selesai)}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={() => openDetail(row)}>Detail</Button>
-                    <Button variant="outline" size="sm" onClick={() => openEditModal(row)}>Edit</Button>
-                    <Button variant="destructive" size="sm" onClick={() => confirmDelete(row)}>Hapus</Button>
-                  </div>
-                </div>
-              );})}
-            </div>
+            <SessionList
+              sessions={sessions}
+              can={can}
+              onOpenDetail={(row) => openDetail(row)}
+              onOpenEdit={(row) => openEditModal(row)}
+              onConfirmDelete={(row) => confirmDelete(row)}
+              onGoToPage={(page) => goToPage(page)}
+              onOpenRespond={(row) => router.get(`/audit-internal/${row.id}/auditee-submissions`)}
+            />
           )}
 
-          {/* Pagination */}
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Halaman {sessions.current_page} dari {sessions.last_page} • Total {sessions.total} data
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={() => goToPage(sessions.current_page - 1)} disabled={sessions.current_page <= 1}>
-                Sebelumnya
-              </Button>
-              <Button variant="outline" onClick={() => goToPage(sessions.current_page + 1)} disabled={sessions.current_page >= sessions.last_page}>
-                Berikutnya
-              </Button>
-            </div>
-          </div>
+          {/* Pagination moved into SessionList */}
         </div>
 
         {/* Add/Edit Dialog */}
-        <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${isDialogOpen && modalType !== 'delete' ? 'block' : 'hidden'}`}>
-          <div className="mx-4 w-full max-w-xl rounded-lg bg-background p-6 shadow-lg">
-            <h2 className="mb-6 text-xl font-semibold">{modalType === 'add' ? 'Buat' : 'Edit'} Sesi Audit</h2>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Kode</label>
-                  <Input value={data.kode} onChange={(e) => setData('kode', e.target.value)} required disabled={processing || modalType==='edit'} />
-                  <div className="text-xs text-destructive">{(errors as any).kode}</div>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Nama</label>
-                  <Input value={data.nama} onChange={(e) => setData('nama', e.target.value)} required disabled={processing} />
-                  <div className="text-xs text-destructive">{(errors as any).nama}</div>
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-3">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Periode</label>
-                  <select className="h-9 rounded border px-3" value={(data.periode_id as number) || ''} onChange={(e) => setData('periode_id', e.target.value ? Number(e.target.value) : '')}>
-                    <option value="">-</option>
-                    {periode_options.map((p) => (
-                      <option key={p.id} value={p.id}>{p.nama}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Tanggal Mulai</label>
-                  <Input type="date" value={data.tanggal_mulai} onChange={(e) => setData('tanggal_mulai', e.target.value)} required />
-                  <div className="text-xs text-destructive">{(errors as any).tanggal_mulai}</div>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Tanggal Selesai</label>
-                  <Input type="date" value={data.tanggal_selesai} onChange={(e) => setData('tanggal_selesai', e.target.value)} required />
-                  <div className="text-xs text-destructive">{(errors as any).tanggal_selesai}</div>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <label className="text-sm font-medium">Deskripsi</label>
-                <textarea className="min-h-[80px] rounded border p-2 text-sm" value={data.deskripsi || ''} onChange={(e) => setData('deskripsi', e.target.value)} />
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Status</label>
-                  <select className="h-9 rounded border px-3" value={data.status ? '1' : '0'} onChange={(e) => setData('status', e.target.value === '1')}>
-                    <option value="1">Aktif</option>
-                    <option value="0">Non-aktif</option>
-                  </select>
-                </div>
-                <div className="grid gap-2">
-                  <label className="text-sm font-medium">Kunci (Lock)</label>
-                  <select className="h-9 rounded border px-3" value={data.is_locked ? '1' : '0'} onChange={(e) => setData('is_locked', e.target.value === '1')}>
-                    <option value="0">Tidak</option>
-                    <option value="1">Ya</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); reset(); }} disabled={processing}>
-                  Batal
-                </Button>
-                <Button type="submit" disabled={processing}>{processing ? 'Menyimpan...' : 'Simpan'}</Button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <SessionFormDialog
+          isOpen={isDialogOpen && modalType !== 'delete'}
+          modalType={modalType === 'delete' ? null : (modalType as 'add' | 'edit' | null)}
+          data={data}
+          errors={errors as any}
+          processing={processing}
+          periodeOptions={periode_options}
+          onChange={(field, value) => setData(field as any, value)}
+          onSubmit={handleSubmit}
+          onClose={() => { setIsDialogOpen(false); reset(); }}
+        />
 
         {/* Delete Confirmation */}
         <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${isDeleteOpen ? 'block' : 'hidden'}`}>

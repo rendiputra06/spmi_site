@@ -35,6 +35,7 @@ export interface StandarMutu extends Timestamps {
   deskripsi: string;
   status: boolean;
   jumlah_indikator: number;
+  jumlah_pertanyaan?: number;
   indikator?: Indikator[];
 }
 

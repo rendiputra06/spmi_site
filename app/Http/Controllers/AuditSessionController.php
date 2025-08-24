@@ -20,6 +20,35 @@ class AuditSessionController extends Controller
                   ->orWhere('deskripsi', 'like', "%$search%");
             });
         }
+        // Role-based visibility: admin sees all; others filtered by assignments
+        $user = $request->user();
+        $isManage = $user?->can('audit-internal-manage') ?? false;
+        $canRespond = $user?->can('auditee-submission-view') ?? false;
+
+        if (!$isManage) {
+            // Determine user's unit (adjust if your app stores unit differently)
+            $unitId = $user?->dosen?->unit_id;
+
+            $query->where(function($q) use ($user, $unitId) {
+                // Auditor assignment: session units where this user is listed as auditor
+                $q->whereHas('units.auditors', function ($qa) use ($user) {
+                    $qa->where('user_id', $user->id);
+                });
+
+                // Auditee by unit assignment: session units matching user's unit
+                if ($unitId) {
+                    $q->orWhereHas('units', function ($qu) use ($unitId) {
+                        $qu->where('unit_id', $unitId);
+                    });
+                }
+            });
+
+            // Only show active sessions
+            $query->where('status', true)
+                  ->whereDate('tanggal_mulai', '<=', now())
+                  ->whereDate('tanggal_selesai', '>=', now());
+        }
+
         $sessions = $query->orderByDesc('tanggal_mulai')->paginate(10);
         $periodeOptions = Periode::orderByDesc('mulai')->get(['id','nama','mulai','selesai']);
 
@@ -27,6 +56,10 @@ class AuditSessionController extends Controller
             'sessions' => $sessions,
             'search' => $search,
             'periode_options' => $periodeOptions,
+            'can' => [
+                'manage' => $isManage,
+                'respond' => $canRespond,
+            ],
         ]);
     }
 

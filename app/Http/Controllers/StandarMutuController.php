@@ -20,9 +20,11 @@ class StandarMutuController extends Controller
                 ->orWhere('nama', 'like', "%$search%")
                 ->orWhere('deskripsi', 'like', "%$search%");
         }
-        $standar = $query->withCount(['indikator as jumlah_indikator', 'indikator as jumlah_pertanyaan' => function ($q) {
-            $q->withCount('pertanyaan');
-        }])
+        // Hitung jumlah indikator dan jumlah pertanyaan (melalui relasi hasManyThrough)
+        $standar = $query->withCount([
+                'indikator as jumlah_indikator',
+                'pertanyaan as jumlah_pertanyaan',
+            ])
             ->paginate(10);
         return Inertia::render('standar-mutu/Index', [
             'standar' => $standar,
