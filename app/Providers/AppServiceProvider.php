@@ -30,5 +30,15 @@ class AppServiceProvider extends ServiceProvider
         Permission::observe(GlobalActivityLogger::class);
         Menu::observe(GlobalActivityLogger::class);
         SettingApp::observe(GlobalActivityLogger::class);
+    
+    	// Ensure generated URLs use HTTPS in production or when APP_URL is HTTPS
+        try {
+            $appUrl = config('app.url');
+            if (app()->environment('production') || (is_string($appUrl) && str_starts_with($appUrl, 'https://'))) {
+                URL::forceScheme('https');
+            }
+        } catch (\Throwable $e) {
+            // no-op: do not break boot if config not available
+        }
     }
 }
