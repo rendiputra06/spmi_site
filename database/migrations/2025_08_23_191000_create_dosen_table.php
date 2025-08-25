@@ -21,7 +21,6 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->foreign('user_id')->references('id')->on('users')->nullOnDelete();
-            $table->foreign('unit_id')->references('id')->on('units')->nullOnDelete();
             $table->index('user_id');
             $table->index('unit_id');
         });

@@ -20,7 +20,6 @@ return new class extends Migration {
             $table->timestamps();
 
             $table->foreign('parent_id')->references('id')->on('units')->nullOnDelete();
-            $table->foreign('leader_id')->references('id')->on('dosen')->nullOnDelete();
         });
     }
 

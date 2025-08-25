@@ -29,6 +29,29 @@ class AuditSessionDetailController extends Controller
         })->count();
         $totalUnit = $session->units()->count();
 
+        // laporan: kumpulkan submission auditee + review auditor untuk tab laporan
+        $submissions = \App\Models\AuditeeSubmission::with([
+            'unit:id,nama,tipe',
+            'standar:id,kode,nama',
+            'indikator:id,standar_id,nama',
+            'pertanyaan:id,indikator_id,isi',
+            'auditorReview:auditee_submission_id,score,reviewer_note,reviewed_by,reviewed_at',
+        ])
+            ->where('audit_session_id', $session->id)
+            ->get([
+                'id',
+                'audit_session_id',
+                'unit_id',
+                'standar_mutu_id',
+                'indikator_id',
+                'pertanyaan_id',
+                'note',
+                'status',
+                'score',
+                'submitted_by',
+                'submitted_at',
+            ]);
+
         return Inertia::render('audit-internal/Detail', [
             'session' => $session,
             'standar_options' => $allStandars,
@@ -40,6 +63,7 @@ class AuditSessionDetailController extends Controller
                 'total_pertanyaan' => $totalPertanyaan,
                 'total_unit' => $totalUnit,
             ],
+            'report' => $submissions,
         ]);
     }
 

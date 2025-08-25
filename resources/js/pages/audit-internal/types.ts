@@ -48,3 +48,23 @@ export type StandarWithChildren = {
   nama: string;
   indikator: Indikator[];
 };
+
+// Row type for Laporan tab
+export type ReportRow = {
+  id: number;
+  unit: { id: number; nama: string; tipe: string };
+  standar: { id: number; kode: string; nama: string };
+  indikator: { id: number; nama: string } | null;
+  pertanyaan: { id: number; isi: string } | null;
+  note?: string | null;
+  status?: string | null;
+  score?: number | string | null; // auditee score if any
+  submitted_by?: number | null;
+  submitted_at?: string | null;
+  auditorReview?: {
+    score?: number | string | null;
+    reviewer_note?: string | null;
+    reviewed_by?: number | null;
+    reviewed_at?: string | null;
+  } | null;
+};
