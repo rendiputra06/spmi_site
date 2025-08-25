@@ -20,6 +20,15 @@ class MenuSeeder extends Seeder
             'permission_name' => 'dashboard-view',
         ]);
 
+        // Self-service: Profil Dosen (visible to users who have access to view their own dosen data)
+        Menu::create([
+            'title' => 'Biodata',
+            'icon' => 'IdCard',
+            'route' => '/my/dosen',
+            'order' => 2,
+            'permission_name' => 'my-dosen-view',
+        ]);
+
         // GROUP: Access
         $access = Menu::create([
             'title' => 'Access',

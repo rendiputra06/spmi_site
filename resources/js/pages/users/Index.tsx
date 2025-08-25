@@ -1,8 +1,9 @@
 import React from 'react';
-import { Head, Link, router, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Pencil, UserRound, RefreshCw, Trash2 } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
 import {
   AlertDialog,
@@ -59,6 +60,9 @@ function getInitials(name: string) {
 
 export default function UserIndex({ users }: Props) {
   const { delete: destroy, processing } = useForm();
+  const page = usePage();
+  const isImpersonating = (page.props as any)?.auth?.isImpersonating as boolean;
+  const canImpersonate = (page.props as any)?.auth?.canImpersonate as boolean;
 
   const handleDelete = (id: number) => {
     destroy(`/users/${id}`, {
@@ -76,6 +80,14 @@ export default function UserIndex({ users }: Props) {
     router.put(`/users/${id}/reset-password`, {}, { preserveScroll: true });
   };
 
+  const handleImpersonate = (id: number) => {
+    router.post(`/users/${id}/impersonate`, {}, { preserveScroll: true });
+  };
+
+  const handleStopImpersonate = () => {
+    router.delete(`/impersonate/stop`, { preserveScroll: true });
+  };
+
   return (
     <AppLayout breadcrumbs={breadcrumbs}>
       <Head title="User Management" />
@@ -85,9 +97,14 @@ export default function UserIndex({ users }: Props) {
             <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
             <p className="text-muted-foreground">Manage user data and their roles within the system.</p>
           </div>
-          <Link href="/users/create">
-            <Button className="w-full md:w-auto" size="sm">+ Add User</Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/users/create">
+              <Button className="w-full md:w-auto" size="sm">+ Add User</Button>
+            </Link>
+            {isImpersonating && (
+              <Button size="sm" variant="secondary" onClick={handleStopImpersonate}>Stop Impersonate</Button>
+            )}
+          </div>
         </div>
 
         <div className="space-y-2 divide-y rounded-md border bg-background">
@@ -125,12 +142,25 @@ export default function UserIndex({ users }: Props) {
                 {/* Aksi */}
                 <div className="flex flex-wrap gap-2 md:justify-end">
                   <Link href={`/users/${user.id}/edit`}>
-                    <Button size="sm" variant="outline">Edit</Button>
+                    <Button size="sm" variant="outline">
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Edit
+                    </Button>
                   </Link>
+
+                  {canImpersonate && !isImpersonating && (
+                    <Button size="sm" variant="secondary" onClick={() => handleImpersonate(user.id)}>
+                      <UserRound className="mr-2 h-4 w-4" />
+                      Impersonate
+                    </Button>
+                  )}
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="secondary">Reset</Button>
+                      <Button size="sm" variant="secondary">
+                        <RefreshCw className="mr-2 h-4 w-4" />
+                        Reset
+                      </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
@@ -155,7 +185,10 @@ export default function UserIndex({ users }: Props) {
 
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button size="sm" variant="destructive">Delete</Button>
+                      <Button size="sm" variant="destructive">
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                      </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>

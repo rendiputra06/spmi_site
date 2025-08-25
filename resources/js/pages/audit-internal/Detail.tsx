@@ -45,14 +45,18 @@ export default function Detail({ session, standar_options, unit_options, auditor
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" onClick={() => window.history.back()}>Kembali</Button>
-            <Button variant={tab === 'standar' ? 'default' : 'outline'} onClick={() => setTab('standar')}>Standar</Button>
-            <Button variant={tab === 'unit' ? 'default' : 'outline'} onClick={() => setTab('unit')}>Unit & Auditor</Button>
-            <Button variant={tab === 'laporan' ? 'default' : 'outline'} onClick={() => setTab('laporan')}>Laporan</Button>
           </div>
         </div>
 
         {/* Session Info */}
         <SessionInfo session={session} stats={stats} />
+
+        {/* Tab Buttons moved below Session Info */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={tab === 'standar' ? 'default' : 'outline'} onClick={() => setTab('standar')}>Standar</Button>
+          <Button variant={tab === 'unit' ? 'default' : 'outline'} onClick={() => setTab('unit')}>Unit & Auditor</Button>
+          <Button variant={tab === 'laporan' ? 'default' : 'outline'} onClick={() => setTab('laporan')}>Laporan</Button>
+        </div>
 
         {tab === 'standar' && (
           <div className="rounded-lg border p-4">

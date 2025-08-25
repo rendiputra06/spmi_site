@@ -19,6 +19,8 @@ use App\Http\Controllers\AuditSessionController;
 use App\Http\Controllers\AuditSessionDetailController;
 use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\AuditeeSubmissionController;
+use App\Http\Controllers\UserImpersonationController;
+use App\Http\Controllers\DosenProfileController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -87,6 +89,13 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     // Auditor review routes
     Route::get('audit-internal/{session}/auditee-review', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'index']);
     Route::post('auditee-submissions/{submission}/review', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'review']);
+
+    // impersonation routes
+    Route::post('/users/{user}/impersonate', [UserImpersonationController::class, 'start'])->name('users.impersonate.start');
+    Route::delete('/impersonate/stop', [UserImpersonationController::class, 'stop'])->name('users.impersonate.stop');
+
+    // My Dosen profile (self-view)
+    Route::get('/my/dosen', DosenProfileController::class)->name('my-dosen.index');
 });
 
 require __DIR__ . '/settings.php';

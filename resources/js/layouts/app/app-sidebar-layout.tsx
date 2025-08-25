@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Head, usePage, router } from '@inertiajs/react';
+import { Button } from '@/components/ui/button';
 import { AppContent } from '@/components/app-content';
 import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
@@ -89,6 +90,17 @@ export default function AppSidebarLayout({
           <AppSidebar />
           <AppContent variant="sidebar">
             <AppSidebarHeader breadcrumbs={breadcrumbs} />
+            {/* Impersonation banner */}
+            {((props as any)?.auth?.isImpersonating as boolean) && (
+              <div className="mx-4 mt-4 rounded-md border border-yellow-400 bg-yellow-50 p-3 text-sm text-yellow-800 dark:border-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-300">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    Anda sedang <strong>impersonate</strong> sebagai pengguna lain.
+                  </div>
+                  <Button size="sm" variant="secondary" onClick={() => router.delete('/impersonate/stop')}>Stop Impersonate</Button>
+                </div>
+              </div>
+            )}
             {children}
           </AppContent>
         </AppShell>

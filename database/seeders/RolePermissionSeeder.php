@@ -42,7 +42,7 @@ class RolePermissionSeeder extends Seeder
             ],
             'Master Data' => [
                 'master-data-view',
-                'dosen-view',
+                'dosen-view',                
                 'units-view',
                 'periodes-view',
             ],
@@ -68,14 +68,14 @@ class RolePermissionSeeder extends Seeder
                 }
 
                 // Assign minimal ke user (auditee)
-                if (in_array($name, ['documents-view', 'audit-internal-view', 'auditee-submission-view'])) {
+                if (in_array($name, ['documents-view','my-dosen-view', 'audit-internal-view', 'auditee-submission-view', 'my-dosen-view'])) {
                     if (!$user->hasPermissionTo($permission)) {
                         $user->givePermissionTo($permission);
                     }
                 }
 
                 // Assign minimal ke auditor (hanya akses yang dibutuhkan auditor)
-                if (in_array($name, ['dashboard-view', 'documents-view', 'audit-internal-view', 'auditee-submission-review'])) {
+                if (in_array($name, ['dashboard-view','my-dosen-view', 'documents-view', 'audit-internal-view', 'auditee-submission-review'])) {
                     if (!$auditor->hasPermissionTo($permission)) {
                         $auditor->givePermissionTo($permission);
                     }

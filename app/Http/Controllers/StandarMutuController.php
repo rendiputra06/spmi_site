@@ -25,7 +25,8 @@ class StandarMutuController extends Controller
                 'indikator as jumlah_indikator',
                 'pertanyaan as jumlah_pertanyaan',
             ])
-            ->paginate(10);
+            ->paginate(10)
+            ->withQueryString();
         return Inertia::render('standar-mutu/Index', [
             'standar' => $standar,
             'search' => $search,

@@ -135,7 +135,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="px-4 py-3 border-t">
         <NavUser  />
-        <NavFooter items={footerNavItems} className="justify-center gap-4" />
+        {/* <NavFooter items={footerNavItems} className="justify-center gap-4" /> */}
       </SidebarFooter>
     </Sidebar>
   );

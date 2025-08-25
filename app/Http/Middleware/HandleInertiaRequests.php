@@ -36,6 +36,8 @@ class HandleInertiaRequests extends Middleware
             'quote' => ['message' => trim($message), 'author' => trim($author)],
             'auth' => [
                 'user' => $request->user(),
+                'isImpersonating' => (bool) $request->session()->get('impersonator_id'),
+                'canImpersonate' => (bool) optional($request->user())->can('users.impersonate'),
             ],
             'flash' => [
                 'success' => session('success'),

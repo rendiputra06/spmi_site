@@ -194,6 +194,23 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                     )}
                 </div>
 
+                {/* Pagination */}
+                {standar.links && standar.links.length > 1 && (
+                    <div className="flex justify-center pt-6 flex-wrap gap-2">
+                        {standar.links.map((link, i) => (
+                            <Button
+                                key={i}
+                                disabled={!link.url}
+                                variant={link.active ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => link.url && router.visit(link.url, { preserveScroll: true })}
+                            >
+                                <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                            </Button>
+                        ))}
+                    </div>
+                )}
+
                 {/* Add/Edit Dialog */}
                 <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${isDialogOpen && modalType !== 'delete' ? 'block' : 'hidden'}`}>
                     <div className="mx-4 w-full max-w-md rounded-lg bg-background p-6 shadow-lg">
