@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Head, Link, router, useForm, usePage } from '@inertiajs/react';
 import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, UserRound, RefreshCw, Trash2 } from 'lucide-react';
 import { type BreadcrumbItem } from '@/types';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -48,6 +50,12 @@ interface Props {
     last_page: number;
     links: { url: string | null; label: string; active: boolean }[];
   };
+  filters: {
+    search: string;
+    role: string;
+    per_page: number;
+  };
+  roles: { id: number; name: string }[];
 }
 
 function getInitials(name: string) {
@@ -58,11 +66,46 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-export default function UserIndex({ users }: Props) {
+export default function UserIndex({ users, filters, roles }: Props) {
   const { delete: destroy, processing } = useForm();
   const page = usePage();
   const isImpersonating = (page.props as any)?.auth?.isImpersonating as boolean;
   const canImpersonate = (page.props as any)?.auth?.canImpersonate as boolean;
+
+  const [search, setSearch] = useState<string>(filters?.search ?? '');
+  // Use a non-empty sentinel for "All roles" to satisfy Select's constraint
+  const [role, setRole] = useState<string>(filters?.role && filters.role !== '' ? filters.role : 'all');
+  const [perPage, setPerPage] = useState<string>(String(filters?.per_page ?? 10));
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => {
+      router.get(
+        '/users',
+        { search, role: role === 'all' ? '' : role, per_page: perPage },
+        { preserveState: true, replace: true, preserveScroll: true }
+      );
+    }, 400);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  const handleRoleChange = (value: string) => {
+    setRole(value);
+    router.get(
+      '/users',
+      { search, role: value === 'all' ? '' : value, per_page: perPage },
+      { preserveState: true, replace: true, preserveScroll: true }
+    );
+  };
+
+  const handlePerPageChange = (value: string) => {
+    setPerPage(value);
+    router.get(
+      '/users',
+      { search, role: role === 'all' ? '' : role, per_page: value },
+      { preserveState: true, replace: true, preserveScroll: true }
+    );
+  };
 
   const handleDelete = (id: number) => {
     destroy(`/users/${id}`, {
@@ -104,6 +147,45 @@ export default function UserIndex({ users }: Props) {
             {isImpersonating && (
               <Button size="sm" variant="secondary" onClick={handleStopImpersonate}>Stop Impersonate</Button>
             )}
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col md:flex-row gap-3 md:items-end">
+          <div className="flex-1">
+            <label className="mb-1 block text-sm font-medium">Search</label>
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or email..."
+            />
+          </div>
+          <div className="w-full md:w-64">
+            <label className="mb-1 block text-sm font-medium">Filter by Role</label>
+            <Select value={role} onValueChange={handleRoleChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="All roles" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All roles</SelectItem>
+                {roles?.map((r) => (
+                  <SelectItem key={r.id} value={r.name}>{r.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="w-full md:w-40">
+            <label className="mb-1 block text-sm font-medium">Per page</label>
+            <Select value={perPage} onValueChange={handlePerPageChange}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[10,25,50,100].map((n) => (
+                  <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
@@ -212,6 +294,32 @@ export default function UserIndex({ users }: Props) {
               </div>
             ))
           )}
+        </div>
+
+        {/* Pagination */}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {users.links.map((link, idx) => {
+            const label = link.label.replace(/&laquo;|&raquo;/g, (m) => (m === '&laquo;' ? '«' : '»'));
+            if (link.url === null) {
+              return (
+                <span
+                  key={idx}
+                  className="px-3 py-1.5 text-sm rounded border bg-muted text-muted-foreground"
+                  dangerouslySetInnerHTML={{ __html: label }}
+                />
+              );
+            }
+            return (
+              <Link
+                key={idx}
+                href={link.url}
+                preserveScroll
+                preserveState
+                className={`px-3 py-1.5 text-sm rounded border ${link.active ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}
+                dangerouslySetInnerHTML={{ __html: label }}
+              />
+            );
+          })}
         </div>
       </div>
     </AppLayout>

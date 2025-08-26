@@ -64,6 +64,7 @@ class AuditeeSubmissionController extends Controller
                 'status' => $s->status,
                 'doc_count' => $s->documents_count,
                 'submitted_at' => $s->submitted_at,
+                'answer_comment' => $s->answer_comment,
             ];
         });
 
@@ -94,14 +95,29 @@ class AuditeeSubmissionController extends Controller
         $data = $request->validate([
             'pertanyaan_id' => 'required|exists:pertanyaan,id',
             'note' => 'nullable|string',
+            // Require non-empty when field is present, but allow absence (e.g., when creating submission for picking documents)
+            'answer_comment' => 'sometimes|required|string',
         ]);
 
         $session = AuditSession::findOrFail($sessionId);
-        $sessionUnit = AuditSessionUnit::where('audit_session_id', $session->id)->firstOrFail();
+        $userUnitId = optional(optional(Auth::user())->dosen)->unit_id;
+        $sessionUnit = AuditSessionUnit::where('audit_session_id', $session->id)
+            ->when($userUnitId, function ($q) use ($userUnitId) { $q->where('unit_id', $userUnitId); })
+            ->firstOrFail();
 
         $pertanyaan = Pertanyaan::with('indikator')->findOrFail($data['pertanyaan_id']);
         $indikator = $pertanyaan->indikator;
         $standarId = $indikator->standar_id;
+
+        $attributes = [
+            'standar_mutu_id' => $standarId,
+            'indikator_id' => $indikator->id,
+            'note' => $data['note'] ?? null,
+            'status' => 'draft',
+        ];
+        if (array_key_exists('answer_comment', $data)) {
+            $attributes['answer_comment'] = $data['answer_comment'];
+        }
 
         $submission = AuditeeSubmission::updateOrCreate(
             [
@@ -109,12 +125,7 @@ class AuditeeSubmissionController extends Controller
                 'unit_id' => $sessionUnit->unit_id,
                 'pertanyaan_id' => $pertanyaan->id,
             ],
-            [
-                'standar_mutu_id' => $standarId,
-                'indikator_id' => $indikator->id,
-                'note' => $data['note'] ?? null,
-                'status' => 'draft',
-            ]
+            $attributes
         );
 
         return back()->with('status', 'Tersimpan');
@@ -140,6 +151,40 @@ class AuditeeSubmissionController extends Controller
         $sessionUnit = AuditSessionUnit::where('audit_session_id', $session->id)
             ->when($userUnitId, function ($q) use ($userUnitId) { $q->where('unit_id', $userUnitId); })
             ->firstOrFail();
+
+        // Get all pertanyaan in scope of this session's standars
+        $standarIds = $session->standars()->pluck('standar_id');
+        $indikatorIds = Indikator::whereIn('standar_id', $standarIds)->pluck('id');
+        $allPertanyaanIds = Pertanyaan::whereIn('indikator_id', $indikatorIds)
+            ->pluck('id')
+            ->toArray();
+
+        // Load submissions with document count
+        $subs = AuditeeSubmission::withCount('documents')
+            ->where('audit_session_id', $session->id)
+            ->where('unit_id', $sessionUnit->unit_id)
+            ->get()
+            ->keyBy('pertanyaan_id');
+
+        $missingDocs = 0;
+        $missingComments = 0;
+        foreach ($allPertanyaanIds as $pid) {
+            $s = $subs->get($pid);
+            if (!$s || ($s->documents_count ?? 0) === 0) {
+                $missingDocs++;
+            }
+            $comment = optional($s)->answer_comment;
+            if (!$s || is_null($comment) || trim($comment) === '') {
+                $missingComments++;
+            }
+        }
+
+        if ($missingDocs > 0 || $missingComments > 0) {
+            $msg = [];
+            if ($missingDocs > 0) { $msg[] = "$missingDocs pertanyaan tanpa dokumen"; }
+            if ($missingComments > 0) { $msg[] = "$missingComments pertanyaan tanpa narasi"; }
+            return back()->with('status', 'Gagal submit: '.implode(', ', $msg));
+        }
 
         $userId = Auth::id();
         $now = now();

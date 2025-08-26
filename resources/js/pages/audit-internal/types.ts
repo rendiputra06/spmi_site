@@ -64,6 +64,9 @@ export type ReportRow = {
   auditorReview?: {
     score?: number | string | null;
     reviewer_note?: string | null;
+    outcome_status?: string | null;
+    is_submitted?: boolean;
+    submitted_at?: string | null;
     reviewed_by?: number | null;
     reviewed_at?: string | null;
   } | null;

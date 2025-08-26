@@ -127,7 +127,7 @@ export default function ReportTable({ rows }: { rows: ReportRow[] }) {
                 </td>
                 <td className="p-2 text-center whitespace-nowrap">{r.score ?? '-'}</td>
                 <td className="p-2 text-center whitespace-nowrap">{r.auditorReview?.score ?? '-'}</td>
-                <td className="p-2 whitespace-nowrap">{r.status ?? '-'}</td>
+                <td className="p-2 whitespace-nowrap">{(r.auditorReview?.outcome_status ?? r.status) ?? '-'}</td>
                 <td className="p-2 whitespace-nowrap">{formatDateTime(r.submitted_at)}</td>
                 <td className="p-2 whitespace-nowrap">{formatDateTime(r.auditorReview?.reviewed_at ?? null)}</td>
               </tr>

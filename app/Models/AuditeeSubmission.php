@@ -18,6 +18,7 @@ class AuditeeSubmission extends Model
         'indikator_id',
         'pertanyaan_id',
         'note',
+        'answer_comment',
         'status',
         'submitted_by',
         'submitted_at',

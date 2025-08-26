@@ -3,6 +3,7 @@ import { ReportRow } from '../../types';
 import dayjs from 'dayjs';
 import ReportControls from './ReportControls';
 import ReportChart from './ReportChart';
+import ReportStatusChart from './ReportStatusChart';
 import ReportTable from './ReportTable';
 
 type Props = {
@@ -38,7 +39,8 @@ export default function ReportTab({ rows }: Props) {
     return rows.filter((r) => {
       const okUnit = unitId === 'all' || r.unit?.id === unitId;
       const okStandar = standarId === 'all' || r.standar?.id === standarId;
-      const okStatus = status === 'all' || (r.status ?? '-') === status;
+      const rowStatus = r.auditorReview?.outcome_status ?? r.status ?? '-';
+      const okStatus = status === 'all' || rowStatus === status;
       return okUnit && okStandar && okStatus;
     });
   }, [rows, unitId, standarId, status]);
@@ -67,9 +69,20 @@ export default function ReportTab({ rows }: Props) {
 
   const statuses = useMemo(() => {
     const s = new Set<string>();
-    rows.forEach((r) => s.add(r.status ?? '-'));
+    rows.forEach((r) => s.add((r.auditorReview?.outcome_status ?? r.status ?? '-')));
     return Array.from(s.values()).sort();
   }, [rows]);
+
+  const statusChartData = useMemo(() => {
+    const counts = new Map<string, number>();
+    filteredRows.forEach((r) => {
+      const st = r.auditorReview?.outcome_status ?? r.status ?? '-';
+      counts.set(st, (counts.get(st) ?? 0) + 1);
+    });
+    return Array.from(counts.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [filteredRows]);
 
   const handleExport = () => {
     const header = [
@@ -128,6 +141,8 @@ export default function ReportTab({ rows }: Props) {
       />
 
       <ReportChart data={chartData} />
+
+      <ReportStatusChart data={statusChartData} />
 
       <ReportTable rows={filteredRows} />
     </div>

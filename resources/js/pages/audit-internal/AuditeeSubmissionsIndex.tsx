@@ -1,7 +1,9 @@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { router, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import React, { useEffect, useMemo, useState } from 'react';
 import InfoBar from './components/auditee/InfoBar';
 import DocumentPickerModal from './components/auditee/DocumentPickerModal';
@@ -12,6 +14,7 @@ interface PertanyaanSubmissionInfo {
     status: 'draft' | 'submitted';
     doc_count: number;
     submitted_at?: string;
+    answer_comment?: string | null;
 }
 
 interface Standar {
@@ -29,7 +32,7 @@ interface PageProps {
     session: { id: number; nama: string };
     unit: { id: number; nama: string } | null;
     standars: Standar[];
-    submissions: Record<string, PertanyaanSubmissionInfo>;
+    submissions: Record<number, PertanyaanSubmissionInfo>;
     message?: string;
     auditors?: Array<{ id: number; name?: string | null; email?: string | null }>;
     auditee?: { id: number; name: string; email?: string | null; unit_id?: number | null } | null;
@@ -42,6 +45,10 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
     const [activeSubmissionId, setActiveSubmissionId] = useState<number | null>(null);
     const [pendingPertanyaanId, setPendingPertanyaanId] = useState<number | null>(null);
     const [inlineAlert, setInlineAlert] = useState<string | null>(null);
+    const [openCommentFor, setOpenCommentFor] = useState<number | null>(null);
+    const [commentsDraft, setCommentsDraft] = useState<Record<number, string>>({});
+    const [isSubmittingAll, setIsSubmittingAll] = useState(false);
+    const [savingCommentFor, setSavingCommentFor] = useState<number | null>(null);
 
     // Flatten all pertanyaan for validation
     const allPertanyaanIds = useMemo(() => {
@@ -92,15 +99,64 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
         setIsReviewOpen(true);
     };
 
+    const handleOpenComment = (pertanyaanId: number) => {
+        setOpenCommentFor((curr) => (curr === pertanyaanId ? null : pertanyaanId));
+        setCommentsDraft((prev) => ({
+            ...prev,
+            [pertanyaanId]: submissions[pertanyaanId]?.answer_comment || '',
+        }));
+    };
+
+    const handleSaveComment = (pertanyaanId: number) => {
+        const value = commentsDraft[pertanyaanId] ?? '';
+        if (value.trim() === '') {
+            toast.error('Narasi tidak boleh kosong');
+            return;
+        }
+        setSavingCommentFor(pertanyaanId);
+        router.post(
+            `/audit-internal/${session.id}/auditee-submissions/upsert`,
+            { pertanyaan_id: pertanyaanId, answer_comment: value },
+            {
+                preserveScroll: true,
+                onSuccess: () => {
+                    toast.success('Narasi tersimpan');
+                    router.reload({ only: ['submissions'] });
+                },
+                onError: () => toast.error('Gagal menyimpan narasi'),
+                onFinish: () => setSavingCommentFor(null),
+            }
+        );
+    };
+
     const handleSubmitAll = () => {
-        // Validate all pertanyaan have at least one document
-        const notFilled = allPertanyaanIds.filter((pid) => !submissions[pid] || (submissions[pid].doc_count || 0) === 0);
-        if (notFilled.length > 0) {
-            setInlineAlert(`Masih ada ${notFilled.length} pertanyaan yang belum memiliki dokumen. Mohon lengkapi terlebih dahulu.`);
+        // Validate all pertanyaan have at least one document and non-empty narrative
+        let missingDocs = 0;
+        let missingComments = 0;
+        allPertanyaanIds.forEach((pid) => {
+            const s = submissions[pid];
+            if (!s || (s.doc_count || 0) === 0) missingDocs++;
+            const c = s?.answer_comment ?? '';
+            if (!s || (typeof c === 'string' && c.trim() === '')) missingComments++;
+        });
+
+        if (missingDocs > 0 || missingComments > 0) {
+            const parts: string[] = [];
+            if (missingDocs > 0) parts.push(`${missingDocs} pertanyaan tanpa dokumen`);
+            if (missingComments > 0) parts.push(`${missingComments} pertanyaan tanpa narasi`);
+            const msg = `Tidak dapat submit: ${parts.join(', ')}`;
+            setInlineAlert(msg);
+            toast.error(msg);
             return;
         }
         setInlineAlert(null);
-        router.post(`/audit-internal/${session.id}/auditee-submissions/submit`);
+        setIsSubmittingAll(true);
+        router.post(`/audit-internal/${session.id}/auditee-submissions/submit`, {}, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Semua jawaban berhasil disubmit'),
+            onError: () => toast.error('Gagal submit jawaban'),
+            onFinish: () => setIsSubmittingAll(false),
+        });
     };
 
     return (
@@ -121,7 +177,9 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <Button onClick={handleSubmitAll}>Submit Semua</Button>
+                        <Button onClick={handleSubmitAll} disabled={isSubmittingAll}>
+                            {isSubmittingAll ? 'Menyubmit...' : 'Submit Semua'}
+                        </Button>
                     </div>
                 </div>
 
@@ -164,31 +222,64 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
                                             {ind.pertanyaan.map((q) => {
                                                 const info = submissions[q.id];
                                                 return (
-                                                    <tr key={`q-${q.id}`}>
-                                                        <td className="px-3 py-2 pl-10">- {q.isi}</td>
-                                                        <td className="px-3 py-2">
-                                                            {info?.doc_count ? (
-                                                                <Badge variant="outline">{info.doc_count} dokumen</Badge>
-                                                            ) : (
-                                                                <span className="text-muted-foreground">Belum ada dokumen</span>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            {info?.status ? (
-                                                                <Badge variant={info.status === 'submitted' ? 'default' : 'secondary'}>
-                                                                    {info.status}
-                                                                </Badge>
-                                                            ) : (
-                                                                <Badge variant="secondary">draft</Badge>
-                                                            )}
-                                                        </td>
-                                                        <td className="px-3 py-2">
-                                                            <div className="flex gap-2">
-                                                                <Button size="sm" variant="outline" onClick={() => handleOpenAttach(q.id)}>Pilih Dokumen</Button>
-                                                                <Button size="sm" variant="ghost" disabled={!info?.doc_count} onClick={() => handleReview(q.id)}>Review</Button>
-                                                            </div>
-                                                        </td>
-                                                    </tr>
+                                                    <React.Fragment key={`qwrap-${q.id}`}>
+                                                        <tr key={`q-${q.id}`}>
+                                                            <td className="px-3 py-2 pl-10">- {q.isi}</td>
+                                                            <td className="px-3 py-2">
+                                                                {info?.doc_count ? (
+                                                                    <Badge variant="outline">{info.doc_count} dokumen</Badge>
+                                                                ) : (
+                                                                    <span className="text-muted-foreground">Belum ada dokumen</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                {info?.status ? (
+                                                                    <Badge variant={info.status === 'submitted' ? 'default' : 'secondary'}>
+                                                                        {info.status}
+                                                                    </Badge>
+                                                                ) : (
+                                                                    <Badge variant="secondary">draft</Badge>
+                                                                )}
+                                                                {info?.answer_comment && info.answer_comment.trim() !== '' ? (
+                                                                    <span className="ml-2 inline-flex items-center">
+                                                                        <Badge variant="outline">Ada narasi</Badge>
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="ml-2 text-xs text-muted-foreground">Belum ada narasi</span>
+                                                                )}
+                                                            </td>
+                                                            <td className="px-3 py-2">
+                                                                <div className="flex flex-wrap gap-2">
+                                                                    <Button size="sm" variant="outline" onClick={() => handleOpenAttach(q.id)}>Pilih Dokumen</Button>
+                                                                    <Button size="sm" variant="ghost" disabled={!info?.doc_count} onClick={() => handleReview(q.id)}>Review</Button>
+                                                                    <Button size="sm" variant="secondary" onClick={() => handleOpenComment(q.id)}>
+                                                                        {openCommentFor === q.id ? 'Tutup Narasi' : 'Isi Narasi'}
+                                                                    </Button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                        {openCommentFor === q.id && (
+                                                            <tr key={`qcomment-${q.id}`}>
+                                                                <td className="px-3 py-2 pl-10" colSpan={4}>
+                                                                    <div className="space-y-2">
+                                                                        <div className="text-xs text-muted-foreground">Narasi/komentar jawaban untuk pertanyaan ini</div>
+                                                                        <Textarea
+                                                                            rows={3}
+                                                                            placeholder="Tulis narasi atau komentar jawaban di sini..."
+                                                                            value={commentsDraft[q.id] ?? ''}
+                                                                            onChange={(e) => setCommentsDraft((prev) => ({ ...prev, [q.id]: e.target.value }))}
+                                                                        />
+                                                                        <div className="flex items-center gap-2">
+                                                                            <Button size="sm" onClick={() => handleSaveComment(q.id)} disabled={savingCommentFor === q.id}>
+                                                                                {savingCommentFor === q.id ? 'Menyimpan...' : 'Simpan Narasi'}
+                                                                            </Button>
+                                                                            <Button size="sm" variant="ghost" onClick={() => setOpenCommentFor(null)}>Batal</Button>
+                                                                        </div>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        )}
+                                                    </React.Fragment>
                                                 );
                                             })}
                                         </React.Fragment>

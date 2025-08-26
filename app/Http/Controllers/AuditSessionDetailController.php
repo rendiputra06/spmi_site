@@ -35,7 +35,7 @@ class AuditSessionDetailController extends Controller
             'standar:id,kode,nama',
             'indikator:id,standar_id,nama',
             'pertanyaan:id,indikator_id,isi',
-            'auditorReview:auditee_submission_id,score,reviewer_note,reviewed_by,reviewed_at',
+            'auditorReview:auditee_submission_id,score,reviewer_note,outcome_status,is_submitted,submitted_at,reviewed_by,reviewed_at',
         ])
             ->where('audit_session_id', $session->id)
             ->get([
@@ -45,7 +45,7 @@ class AuditSessionDetailController extends Controller
                 'standar_mutu_id',
                 'indikator_id',
                 'pertanyaan_id',
-                'note',
+                \DB::raw('answer_comment as note'),
                 'status',
                 'score',
                 'submitted_by',

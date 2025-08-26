@@ -11,12 +11,40 @@ use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $users = User::with('roles')->latest()->paginate(10);
+        $search = (string) $request->input('search', '');
+        $role = (string) $request->input('role', '');
+        $perPageInput = (int) $request->input('per_page', 10);
+        $perPage = in_array($perPageInput, [10, 25, 50, 100], true) ? $perPageInput : 10;
+
+        $users = User::query()
+            ->with('roles')
+            ->when($search !== '', function ($q) use ($search) {
+                $q->where(function ($qq) use ($search) {
+                    $qq->where('name', 'like', "%{$search}%")
+                       ->orWhere('email', 'like', "%{$search}%");
+                });
+            })
+            ->when($role !== '', function ($q) use ($role) {
+                $q->whereHas('roles', function ($rq) use ($role) {
+                    $rq->where('name', $role);
+                });
+            })
+            ->latest()
+            ->paginate($perPage)
+            ->withQueryString();
+
+        $roles = Role::query()->select(['id', 'name'])->orderBy('name')->get();
 
         return Inertia::render('users/Index', [
             'users' => $users,
+            'filters' => [
+                'search' => $search,
+                'role' => $role,
+                'per_page' => $perPage,
+            ],
+            'roles' => $roles,
         ]);
     }
 
