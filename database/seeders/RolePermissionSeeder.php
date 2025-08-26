@@ -25,6 +25,7 @@ class RolePermissionSeeder extends Seeder
                 'permission-view',
                 'users-view',
                 'roles-view',
+                'users.impersonate'
             ],
             'Settings' => [
                 'settings-view',
@@ -53,6 +54,10 @@ class RolePermissionSeeder extends Seeder
                 'auditee-submission-review',
                 'documents-view',
             ],
+            'Monev Dosen' => [
+                'monev-dosen-manage',
+                'monev-dosen-view',
+            ],
         ];
 
         foreach ($permissions as $group => $perms) {
@@ -68,7 +73,7 @@ class RolePermissionSeeder extends Seeder
                 }
 
                 // Assign minimal ke user (auditee)
-                if (in_array($name, ['documents-view','my-dosen-view', 'audit-internal-view', 'auditee-submission-view', 'my-dosen-view'])) {
+                if (in_array($name, ['documents-view','my-dosen-view','monev-dosen-view', 'audit-internal-view', 'auditee-submission-view', 'my-dosen-view'])) {
                     if (!$user->hasPermissionTo($permission)) {
                         $user->givePermissionTo($permission);
                     }

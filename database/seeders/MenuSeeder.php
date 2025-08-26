@@ -110,7 +110,6 @@ class MenuSeeder extends Seeder
             'permission_name' => 'utilities-view',
         ]);
 
-
         Menu::create([
             'title' => 'Audit Logs',
             'icon' => 'Activity',
@@ -135,21 +134,6 @@ class MenuSeeder extends Seeder
             'route' => '#',
             'order' => 5,
             'permission_name' => 'master-data-view',
-        ]);
-
-        Menu::create([
-            'title' => 'Standar Mutu',
-            'icon' => 'CheckCircle',
-            'route' => '/standar-mutu',
-            'order' => 2,
-            'permission_name' => 'standar-mutu-view',
-        ]);
-        Menu::create([
-            'title' => 'Audit Mutu Internal',
-            'icon' => 'ClipboardCheck',
-            'route' => '/audit-internal',
-            'order' => 3,
-            'permission_name' => 'audit-internal-view',
         ]);
 
         Menu::create([
@@ -178,15 +162,46 @@ class MenuSeeder extends Seeder
             'permission_name' => 'periodes-view',
             'parent_id' => $master_data->id,
         ]);
+        
+        Menu::create([
+            'title' => 'Standar Mutu',
+            'icon' => 'CheckCircle',
+            'route' => '/standar-mutu',
+            'order' => 2,
+            'permission_name' => 'standar-mutu-view',
+        ]);
+        Menu::create([
+            'title' => 'Audit Mutu Internal',
+            'icon' => 'ClipboardCheck',
+            'route' => '/audit-internal',
+            'order' => 3,
+            'permission_name' => 'audit-internal-view',
+        ]);
+        // Admin: Surveys management (Monev Dosen)
+        Menu::create([
+            'title' => 'Surveys',
+            'icon' => 'ListChecks',
+            'route' => '/admin/surveys',
+            'order' => 4,
+            'permission_name' => 'monev-dosen-manage',
+        ]);
 
         Menu::create([
             'title' => 'Documents',
             'icon' => 'FileText',
             'route' => '/documents',
-            'order' => 4,
+            'order' => 5,
             'permission_name' => 'documents-view',
         ]);
-
+        // Monev Dosen (self-service survey)
+        Menu::create([
+            'title' => 'Monev Dosen',
+            'icon' => 'ListChecks',
+            'route' => '/monev-dosen',
+            'order' => 6,
+            'permission_name' => 'monev-dosen-view',
+        ]);
+        
         $permissions = Menu::pluck('permission_name')->unique()->filter();
 
         foreach ($permissions as $permName) {

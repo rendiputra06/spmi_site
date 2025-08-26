@@ -43,7 +43,12 @@ class DocumentSeeder extends Seeder
                 $path = 'documents/'.$filename;
                 $content = "Judul: {$s['title']}\nUnit: {$unit->nama}\nKategori: {$s['category']}\nSeeder generated content.";
                 Storage::disk('public')->put($path, $content);
-                $size = Storage::disk('public')->size($path) ?: strlen($content);
+                try {
+                    $size = Storage::disk('public')->size($path);
+                } catch (\Throwable $e) {
+                    // Some environments/adapters may not support size() metadata; fall back to content length
+                    $size = strlen($content);
+                }
 
                 Document::create([
                     'unit_id' => $unit->id,
