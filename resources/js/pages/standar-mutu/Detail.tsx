@@ -7,6 +7,7 @@ import AppLayout from '@/layouts/app-layout';
 import { Transition } from '@headlessui/react';
 import { useForm, router } from '@inertiajs/react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { IndikatorForm } from './components/forms/IndikatorForm';
 import { PertanyaanForm } from './components/forms/PertanyaanForm';
 import { IndikatorList } from './components/IndikatorList';
@@ -67,7 +68,7 @@ export default function StandarMutuDetail({ standar }: any) {
         // Debug outgoing payload from child form
         console.log('Submitting indikator data:', data);
         if (!data.nama || data.nama.trim() === '') {
-            alert('Nama indikator wajib diisi.');
+            toast.error('Pernyataan indikator wajib diisi.');
             return;
         }
         if (modalType === 'indikator-add') {
@@ -88,11 +89,15 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    toast.success('Indikator berhasil ditambahkan.');
                     indikatorForm.reset();
                     router.reload({ only: ['standar'] });
                 },
                 onError: (errors) => {
                     console.error('Error saving indikator:', errors);
+                    const firstKey = Object.keys(errors || {})[0];
+                    const msg = (firstKey && (errors as any)[firstKey]) || 'Gagal menyimpan indikator.';
+                    toast.error(msg);
                 },
                 preserveScroll: true,
                 preserveState: true,
@@ -114,11 +119,15 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    toast.success('Indikator berhasil diperbarui.');
                     indikatorForm.reset();
                     router.reload({ only: ['standar'] });
                 },
                 onError: (errors) => {
                     console.error('Error updating indikator:', errors);
+                    const firstKey = Object.keys(errors || {})[0];
+                    const msg = (firstKey && (errors as any)[firstKey]) || 'Gagal memperbarui indikator.';
+                    toast.error(msg);
                 },
                 preserveScroll: true,
                 preserveState: true,
@@ -130,7 +139,7 @@ export default function StandarMutuDetail({ standar }: any) {
         // Debug outgoing payload from child form
         console.log('Submitting pertanyaan data:', data);
         if (!data.isi || data.isi.trim() === '') {
-            alert('Isi pertanyaan tidak boleh kosong.');
+            toast.error('Isi pertanyaan tidak boleh kosong.');
             return;
         }
         if (modalType === 'pertanyaan-add' && selectedIndikator) {
@@ -141,13 +150,16 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    toast.success('Pertanyaan berhasil ditambahkan.');
                     // Reset form after successful submission
                     pertanyaanForm.reset();
                     router.reload({ only: ['standar'] });
                 },
                 onError: (errors: any) => {
                     console.error('Error saving pertanyaan:', errors);
-                    // The error will be automatically handled by the form's error bag
+                    const firstKey = Object.keys(errors || {})[0];
+                    const msg = (firstKey && (errors as any)[firstKey]) || 'Gagal menyimpan pertanyaan.';
+                    toast.error(msg);
                 },
                 onFinish: () => {
                     // Reset form processing state
@@ -164,13 +176,16 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    toast.success('Pertanyaan berhasil diperbarui.');
                     // Reset form after successful update
                     pertanyaanForm.reset();
                     router.reload({ only: ['standar'] });
                 },
                 onError: (errors: any) => {
                     console.error('Error updating pertanyaan:', errors);
-                    // The error will be automatically handled by the form's error bag
+                    const firstKey = Object.keys(errors || {})[0];
+                    const msg = (firstKey && (errors as any)[firstKey]) || 'Gagal memperbarui pertanyaan.';
+                    toast.error(msg);
                 },
                 onFinish: () => {
                     // Reset form processing state
@@ -198,11 +213,13 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    toast.success('Indikator berhasil dihapus.');
                     router.reload({ only: ['standar'] });
                 },
                 onError: (errors) => {
                     console.error('Error deleting indikator:', errors);
-                    alert('Gagal menghapus indikator. Silakan coba lagi.');
+                    const msg = (errors as any)?.message || 'Gagal menghapus indikator. Silakan coba lagi.';
+                    toast.error(msg);
                 },
                 preserveScroll: true,
                 preserveState: true,
@@ -216,7 +233,13 @@ export default function StandarMutuDetail({ standar }: any) {
                 onSuccess: () => {
                     setShowDialog(false);
                     setRecentlySuccessful(true);
+                    toast.success('Pertanyaan berhasil dihapus.');
                     router.reload({ only: ['standar'] });
+                },
+                onError: (errors) => {
+                    console.error('Error deleting pertanyaan:', errors);
+                    const msg = (errors as any)?.message || 'Gagal menghapus pertanyaan. Silakan coba lagi.';
+                    toast.error(msg);
                 },
             });
         }
@@ -264,15 +287,7 @@ export default function StandarMutuDetail({ standar }: any) {
                 <p className="mb-2">
                     Kode: <b>{standar.kode}</b>
                 </p>
-                <Transition
-                    show={recentlySuccessful}
-                    enter="transition ease-in-out"
-                    enterFrom="opacity-0"
-                    leave="transition ease-in-out"
-                    leaveTo="opacity-0"
-                >
-                    <p className="text-sm text-green-600">Berhasil!</p>
-                </Transition>
+                {/* Toasts handled globally via <Toaster /> in layout */}
                 <div className="mb-4 flex items-center justify-between">
                     <div>
                         <h2 className="text-lg font-semibold">Indikator</h2>

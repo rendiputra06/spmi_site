@@ -41,6 +41,7 @@ export default function DocumentsIndex({
     const [categoryFilter, setCategoryFilter] = useState<string>(category || '');
     const [statusFilter, setStatusFilter] = useState<string>(status || '');
     const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
+    const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
 
     const goToPage = (page: number) => {
         if (page < 1 || page > documents.last_page || page === documents.current_page) return;
@@ -141,7 +142,15 @@ export default function DocumentsIndex({
 
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {documents.data.map((doc) => (
-                        <DocumentCard key={doc.id} item={doc} onPreview={() => setPreviewDoc(doc)} />
+                        <DocumentCard
+                            key={doc.id}
+                            item={doc}
+                            onPreview={() => setPreviewDoc(doc)}
+                            onEdit={() => {
+                                setSelectedDoc(doc);
+                                setIsUploadOpen(true);
+                            }}
+                        />
                     ))}
                 </div>
 
@@ -165,10 +174,23 @@ export default function DocumentsIndex({
 
                 <DocumentForm
                     open={isUploadOpen}
-                    onOpenChange={setIsUploadOpen}
+                    onOpenChange={(v) => {
+                        if (!v) setSelectedDoc(null);
+                        setIsUploadOpen(v);
+                    }}
                     unitOptions={unit_options}
                     canManageAll={can_manage_all}
                     defaultUnitId={unit_id ? String(unit_id) : ''}
+                    mode={selectedDoc ? 'edit' : 'create'}
+                    initialData={selectedDoc ? {
+                        id: selectedDoc.id,
+                        title: selectedDoc.title,
+                        description: selectedDoc.description ?? '',
+                        category: selectedDoc.category ?? '',
+                        status: (selectedDoc.status as any) ?? 'draft',
+                        unit_id: selectedDoc.unit_id ?? '',
+                    } : null}
+                    documentId={selectedDoc?.id ?? null}
                 />
 
                 {previewDoc && (

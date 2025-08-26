@@ -73,6 +73,7 @@ export interface StandarMutuIndexProps {
   search?: string;
   status?: string;
   error?: string;
+  filterStatus?: string;
 }
 
 export interface StandarMutuDetailProps {

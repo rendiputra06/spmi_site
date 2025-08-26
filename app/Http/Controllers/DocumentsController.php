@@ -123,7 +123,7 @@ class DocumentsController extends Controller
             'category' => 'nullable|string|max:100',
             'status' => 'nullable|in:draft,published,archived',
             'unit_id' => 'nullable|exists:units,id',
-            'file' => 'required|file|max:51200', // 50MB
+            'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg', // 50MB
         ]);
 
         $unitId = $canManageAll ? ($validated['unit_id'] ?? $userUnitId) : $userUnitId;
@@ -131,23 +131,27 @@ class DocumentsController extends Controller
             return back()->withErrors(['unit_id' => 'Unit tidak ditemukan untuk pengguna ini.']);
         }
 
-        $path = $request->file('file')->store('documents', 'public');
-        $mime = $request->file('file')->getMimeType();
-        $size = $request->file('file')->getSize();
-
-        Document::create([
+        $document = Document::create([
             'unit_id' => $unitId,
             'uploaded_by' => $user->id,
             'title' => $validated['title'],
             'description' => $validated['description'] ?? null,
             'category' => $validated['category'] ?? null,
             'status' => $validated['status'] ?? 'draft',
-            'file_path' => $path,
-            'mime' => $mime,
-            'size' => $size,
         ]);
 
-        return redirect()->route('documents.index')->with('status', 'Dokumen diunggah');
+        // Attach media via Spatie (singleFile collection ensures old is replaced automatically)
+        $media = $document
+            ->addMedia($request->file('file'))
+            ->toMediaCollection('documents');
+
+        // Keep legacy fields in sync for existing frontend usages
+        $document->file_path = ltrim(str_replace(Storage::disk('public')->path(''), '', $media->getPath()), '/');
+        $document->mime = $media->mime_type;
+        $document->size = $media->size;
+        $document->save();
+
+        return redirect()->route('documents.index')->with('success', 'Dokumen diunggah');
     }
 
     public function update(Request $request, Document $document)
@@ -159,18 +163,19 @@ class DocumentsController extends Controller
             'description' => 'nullable|string',
             'category' => 'nullable|string|max:100',
             'status' => 'nullable|in:draft,published,archived',
-            'file' => 'nullable|file|max:51200',
+            'file' => 'nullable|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg',
         ]);
 
         if ($request->hasFile('file')) {
-            // optional: delete old file
-            if ($document->file_path && Storage::disk('public')->exists($document->file_path)) {
-                Storage::disk('public')->delete($document->file_path);
-            }
-            $path = $request->file('file')->store('documents', 'public');
-            $document->file_path = $path;
-            $document->mime = $request->file('file')->getMimeType();
-            $document->size = $request->file('file')->getSize();
+            // Replace media (singleFile collection auto-deletes previous)
+            $media = $document
+                ->addMedia($request->file('file'))
+                ->toMediaCollection('documents');
+
+            // Sync legacy fields
+            $document->file_path = ltrim(str_replace(Storage::disk('public')->path(''), '', $media->getPath()), '/');
+            $document->mime = $media->mime_type;
+            $document->size = $media->size;
         }
 
         $document->fill([
@@ -180,23 +185,30 @@ class DocumentsController extends Controller
             'status' => $validated['status'] ?? $document->status,
         ])->save();
 
-        return back()->with('status', 'Dokumen diperbarui');
+        return back()->with('success', 'Dokumen diperbarui');
     }
 
     public function destroy(Document $document)
     {
         // $this->authorize('delete', $document);
-        // optional: delete file from storage too
-        if ($document->file_path && Storage::disk('public')->exists($document->file_path)) {
-            Storage::disk('public')->delete($document->file_path);
+        // MediaLibrary will handle file deletion if you also remove associated media.
+        if ($media = $document->getFirstMedia('documents')) {
+            $media->delete();
         }
         $document->delete();
-        return back()->with('status', 'Dokumen dihapus');
+        return back()->with('success', 'Dokumen dihapus');
     }
 
     public function download(Document $document)
     {
         // $this->authorize('view', $document);
+        $media = $document->getFirstMedia('documents');
+        if ($media) {
+            $ext = pathinfo($media->file_name, PATHINFO_EXTENSION);
+            $filename = Str::slug($document->title) . ($ext ? ".{$ext}" : '');
+            return response()->download($media->getPath(), $filename);
+        }
+        // Fallback to legacy storage if media not found
         if (!$document->file_path || !Storage::disk('public')->exists($document->file_path)) {
             abort(404);
         }

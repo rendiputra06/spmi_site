@@ -37,25 +37,27 @@ export function IndikatorForm({ initialData, onSubmit, onCancel, isProcessing }:
     return (
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-2">
-                <Label htmlFor="indikator-nama">Nama</Label>
-                <Input
+                <Label htmlFor="indikator-nama">Pernyataan</Label>
+                <textarea
                     id="indikator-nama"
                     value={form.data.nama}
                     onChange={(e) => form.setData('nama', e.target.value)}
-                    placeholder="Contoh: Tingkat kelulusan tepat waktu"
+                    placeholder="Tuliskan pernyataan indikator..."
                     required
                     disabled={isProcessing}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <InputError message={form.errors.nama} />
             </div>
             <div className="grid gap-2">
                 <Label htmlFor="indikator-kriteria">Kriteria Penilaian</Label>
-                <Input
+                <textarea
                     id="indikator-kriteria"
                     value={form.data.kriteria_penilaian}
                     onChange={(e) => form.setData('kriteria_penilaian', e.target.value)}
-                    placeholder="Contoh: Minimal 80% mahasiswa lulus tepat waktu"
+                    placeholder="Tuliskan kriteria penilaian..."
                     disabled={isProcessing}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <InputError message={form.errors.kriteria_penilaian as string} />
             </div>

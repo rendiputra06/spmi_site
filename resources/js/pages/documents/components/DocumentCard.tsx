@@ -1,14 +1,19 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Download, Trash2, Eye } from 'lucide-react';
+import { Download, Trash2, Eye, Pencil } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import type { DocumentItem } from '../types';
 import { router } from '@inertiajs/react';
+import { toast } from 'sonner';
 
-export function DocumentCard({ item, onPreview }: { item: DocumentItem; onPreview?: () => void }) {
+export function DocumentCard({ item, onPreview, onEdit }: { item: DocumentItem; onPreview?: () => void; onEdit?: () => void }) {
   const onDelete = () => {
     if (!confirm(`Hapus dokumen "${item.title}"?`)) return;
-    router.delete(`/documents/${item.id}`, { preserveScroll: true });
+    router.delete(`/documents/${item.id}`, {
+      preserveScroll: true,
+      onSuccess: () => toast.success('Dokumen berhasil dihapus.'),
+      onError: () => toast.error('Gagal menghapus dokumen.'),
+    });
   };
 
   return (
@@ -27,6 +32,16 @@ export function DocumentCard({ item, onPreview }: { item: DocumentItem; onPrevie
       </div>
       <TooltipProvider>
         <div className="flex gap-2 justify-end">
+          {onEdit && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onEdit} aria-label="Edit">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Edit</TooltipContent>
+            </Tooltip>
+          )}
           {onPreview && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -40,7 +55,11 @@ export function DocumentCard({ item, onPreview }: { item: DocumentItem; onPrevie
           <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild variant="outline" size="sm" aria-label="Unduh">
-                <a href={`/documents/${item.id}/download`}>
+                <a
+                  href={`/documents/${item.id}/download`}
+                  download
+                  onClick={(e) => e.stopPropagation()}
+                >
                   <Download className="h-4 w-4" />
                 </a>
               </Button>

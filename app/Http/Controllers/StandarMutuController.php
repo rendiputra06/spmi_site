@@ -7,18 +7,32 @@ use App\Models\Indikator;
 use App\Models\Pertanyaan;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
 
 class StandarMutuController extends Controller
 {
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $status = $request->input('status'); // expected: 'active', 'inactive', '1', '0', 'true', 'false'
         $query = StandarMutu::query();
         if ($search) {
-            $query->where('kode', 'like', "%$search%")
-                ->orWhere('nama', 'like', "%$search%")
-                ->orWhere('deskripsi', 'like', "%$search%");
+            $query->where(function ($q) use ($search) {
+                $q->where('kode', 'like', "%$search%")
+                    ->orWhere('nama', 'like', "%$search%")
+                    ->orWhere('deskripsi', 'like', "%$search%");
+            });
+        }
+        // Optional filter by status
+        if (!is_null($status) && $status !== '' && $status !== 'all') {
+            $bool = null;
+            if (in_array(strtolower((string)$status), ['1','true','active'])) {
+                $bool = true;
+            } elseif (in_array(strtolower((string)$status), ['0','false','inactive'])) {
+                $bool = false;
+            }
+            if (!is_null($bool)) {
+                $query->where('status', $bool);
+            }
         }
         // Hitung jumlah indikator dan jumlah pertanyaan (melalui relasi hasManyThrough)
         $standar = $query->withCount([
@@ -30,6 +44,7 @@ class StandarMutuController extends Controller
         return Inertia::render('standar-mutu/Index', [
             'standar' => $standar,
             'search' => $search,
+            'filterStatus' => $status,
         ]);
     }
 
@@ -84,8 +99,6 @@ class StandarMutuController extends Controller
     // CRUD Indikator
     public function storeIndikator(Request $request, $standar)
     {
-        // Temporary log to verify incoming payload
-        Log::info('storeIndikator payload', $request->all());
         $data = $request->validate([
             'nama' => 'required|string',
             'kriteria_penilaian' => 'nullable|string',

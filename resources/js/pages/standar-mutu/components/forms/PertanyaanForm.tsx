@@ -33,13 +33,14 @@ export function PertanyaanForm({ initialData, onSubmit, onCancel, isProcessing }
         <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid gap-2">
                 <Label htmlFor="pertanyaan-isi">Isi Pertanyaan</Label>
-                <Input
+                <textarea
                     id="pertanyaan-isi"
                     value={form.data.isi}
                     onChange={(e) => form.setData('isi', e.target.value)}
                     placeholder="Contoh: Apakah proses pembimbingan skripsi berjalan sesuai SOP?"
                     required
                     disabled={isProcessing}
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 />
                 <InputError message={form.errors.isi} />
             </div>

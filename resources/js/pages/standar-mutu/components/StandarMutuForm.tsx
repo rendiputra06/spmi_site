@@ -44,11 +44,15 @@ export function StandarMutuForm({
         <Label htmlFor="kode">Kode</Label>
         <Input 
           id="kode" 
-          value={data.kode} 
-          onChange={handleChange('kode')} 
+          value={data.kode}
+          onChange={(e) => setData('kode', e.target.value.toUpperCase())}
           required 
           disabled={isEdit}
+          className="font-mono uppercase tracking-wider"
+          placeholder="Contoh: STD-01"
+          aria-describedby="kode-help"
         />
+        <span id="kode-help" className="text-[11px] text-muted-foreground">Gunakan format kode konsisten, misal: STD-01</span>
         <InputError message={errors.kode} />
       </div>
       

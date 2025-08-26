@@ -37,7 +37,7 @@ export function StandarMutuCard({ item, onEdit, onDelete, index, currentPage, pe
             <div className="flex flex-col justify-between gap-4 md:flex-row md:items-center">
                 <div className="flex-1">
                     <div className="flex items-center gap-3">
-                        <div className="bg-primary/10 text-primary flex h-10 w-10 items-center justify-center rounded-full font-semibold">
+                        <div className="rounded-md bg-muted px-2 py-1 font-mono text-xs uppercase tracking-wider text-muted-foreground">
                             {item.kode}
                         </div>
                         <div>

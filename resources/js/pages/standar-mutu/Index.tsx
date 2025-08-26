@@ -8,11 +8,13 @@ import { StandarMutuCard } from './components/StandarMutuCard';
 import { StandarMutuForm } from './components/StandarMutuForm';
 import { StandarMutu, ModalType, StandarMutuIndexProps, StandarMutuFormData } from './types';
 
-export default function StandarMutuIndex({ standar, search, status, error }: StandarMutuIndexProps) {
+export default function StandarMutuIndex({ standar, search, status, error, filterStatus }: StandarMutuIndexProps) {
     const [query, setQuery] = useState(search || '');
+    const [statusFilter, setStatusFilter] = useState<string>(filterStatus || 'all');
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [recentlySuccessful, setRecentlySuccessful] = useState(false);
     const [editId, setEditId] = useState<number | null>(null);
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [modalType, setModalType] = useState<ModalType>(null);
 
     const { data, setData, post, put, reset, errors, processing } = useForm<StandarMutuFormData>({
@@ -24,10 +26,10 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
 
     const handleSearch = (e?: React.FormEvent) => {
         e?.preventDefault();
-        if (query !== search) {
+        if (query !== search || (filterStatus || 'all') !== statusFilter) {
             router.get(
                 '/standar-mutu',
-                { search: query },
+                { search: query, status: statusFilter },
                 {
                     preserveState: true,
                     preserveScroll: true,
@@ -39,7 +41,8 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
     const handleResetSearch = (e?: React.FormEvent) => {
         e?.preventDefault();
         setQuery('');
-        if (search) {
+        setStatusFilter('all');
+        if (search || (filterStatus && filterStatus !== 'all')) {
             router.get(
                 '/standar-mutu',
                 {},
@@ -74,6 +77,11 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                 setRecentlySuccessful(true);
                 setTimeout(() => setRecentlySuccessful(false), 2000);
             },
+            onError: (errors) => {
+                const msg = (errors && (errors as any).message) || 'Gagal menghapus standar. Silakan coba lagi.';
+                setErrorMessage(msg);
+                setTimeout(() => setErrorMessage(null), 4000);
+            }
         });
     };
 
@@ -87,6 +95,11 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                     setRecentlySuccessful(true);
                     setTimeout(() => setRecentlySuccessful(false), 2000);
                 },
+                onError: (errors) => {
+                    const firstKey = Object.keys(errors || {})[0];
+                    const msg = (firstKey && (errors as any)[firstKey]) || 'Gagal menyimpan standar.';
+                    setErrorMessage(msg);
+                }
             });
         } else if (modalType === 'edit' && editId) {
             put(`/standar-mutu/${editId}`, {
@@ -95,6 +108,11 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                     setRecentlySuccessful(true);
                     setTimeout(() => setRecentlySuccessful(false), 2000);
                 },
+                onError: (errors) => {
+                    const firstKey = Object.keys(errors || {})[0];
+                    const msg = (firstKey && (errors as any)[firstKey]) || 'Gagal memperbarui standar.';
+                    setErrorMessage(msg);
+                }
             });
         }
     };
@@ -139,6 +157,15 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                                 />
                             </div>
                             <div className="flex gap-2">
+                                <select
+                                    value={statusFilter}
+                                    onChange={(e) => setStatusFilter(e.target.value)}
+                                    className="h-9 rounded-md border bg-background px-3 text-sm"
+                                >
+                                    <option value="all">Semua Status</option>
+                                    <option value="active">Aktif</option>
+                                    <option value="inactive">Nonaktif</option>
+                                </select>
                                 <Button 
                                     variant="outline" 
                                     onClick={handleSearch}
@@ -150,7 +177,7 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                                 <Button 
                                     variant="outline" 
                                     onClick={handleResetSearch}
-                                    disabled={!query && !search}
+                                    disabled={!query && !search && (statusFilter === 'all' && (!filterStatus || filterStatus === 'all'))}
                                 >
                                     Reset
                                 </Button>
@@ -161,6 +188,12 @@ export default function StandarMutuIndex({ standar, search, status, error }: Sta
                     {recentlySuccessful && (
                         <div className="mb-4 rounded-md bg-green-50 p-4 text-sm text-green-700">
                             Data berhasil disimpan
+                        </div>
+                    )}
+
+                    {errorMessage && (
+                        <div className="mb-4 rounded-md bg-red-50 p-4 text-sm text-red-700">
+                            {errorMessage}
                         </div>
                     )}
 
