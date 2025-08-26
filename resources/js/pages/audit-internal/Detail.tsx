@@ -76,7 +76,7 @@ export default function Detail({ session, standar_options, unit_options, auditor
 
         {tab === 'laporan' && (
           <div className="rounded-lg border p-4">
-            <h3 className="mb-4 text-lg font-semibold">Laporan Auditor & Auditee</h3>
+            <h3 className="mb-4 text-lg font-semibold">Laporan Auditor</h3>
             <ReportTab rows={report} />
           </div>
         )}

@@ -12,6 +12,7 @@ interface SubmissionRow {
     standar: { id: number; nama: string } | null;
     indikator: { id: number; nama: string } | null;
     pertanyaan: { id: number; isi: string } | null;
+    answer_comment?: string | null;
     documents: any[];
     review: {
         score?: number | string | null;
@@ -26,10 +27,11 @@ interface SubmissionRow {
 interface PageProps {
     session: any;
     assigned_unit_ids: number[];
+    assigned_units?: { id: number; nama: string }[];
     submissions?: SubmissionRow[];
 }
 
-export default function AuditeeReviewIndex({ session, assigned_unit_ids, submissions = [] }: PageProps) {
+export default function AuditeeReviewIndex({ session, assigned_unit_ids, assigned_units = [], submissions = [] }: PageProps) {
     const page = usePage<any>();
     const authUser = (page?.props as any)?.auth?.user;
     const auditorName: string | undefined = authUser?.name;
@@ -135,7 +137,7 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, submiss
             ]}
         >
             <div className="space-y-4 p-4 md:p-6">
-                <InfoBarAuditor session={session} assignedUnitIds={assigned_unit_ids} auditorName={auditorName} />
+                <InfoBarAuditor session={session} assignedUnitIds={assigned_unit_ids} auditorName={auditorName} assignedUnits={assigned_units} />
                 <StatsBarAuditor submissions={submissions} />
 
                 <div className="flex items-center justify-between">
@@ -143,7 +145,7 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, submiss
                     {isUnitSubmitted ? (
                         <Button onClick={unsubmitUnit} variant="destructive">Batalkan Submit</Button>
                     ) : (
-                        <Button onClick={submitUnit} variant="default">Submit Review Unit</Button>
+                        <Button onClick={submitUnit} variant="default">Submit Review</Button>
                     )}
                 </div>
                 <AuditeeReviewTable

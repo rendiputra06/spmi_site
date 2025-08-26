@@ -3,14 +3,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts';
 
-type ChartDatum = { name: string; auditee: number; auditor: number };
+type ChartDatum = { name: string; auditor: number };
 
 export default function ReportChart({ data }: { data: ChartDatum[] }) {
   return (
@@ -28,9 +27,7 @@ export default function ReportChart({ data }: { data: ChartDatum[] }) {
             />
             <YAxis tick={{ fontSize: 11 }} />
             <Tooltip />
-            <Legend />
-            <Bar dataKey="auditee" name="Rata2 Auditee" fill="#60a5fa" />
-            <Bar dataKey="auditor" name="Rata2 Auditor" fill="#34d399" />
+            <Bar dataKey="auditor" name="Rata-rata (Auditor)" fill="#34d399" />
           </BarChart>
         </ResponsiveContainer>
       </div>

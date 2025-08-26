@@ -32,6 +32,18 @@ class AuditeeSubmissionReviewController extends Controller
             ->unique()
             ->values();
 
+        // Also load unit names for display
+        $assignedUnits = [];
+        if ($assignedUnitIds->count() > 0) {
+            $assignedUnits = \App\Models\Unit::whereIn('id', $assignedUnitIds)
+                ->select('id', 'nama')
+                ->orderBy('nama')
+                ->get()
+                ->map(function ($u) {
+                    return ['id' => $u->id, 'nama' => $u->nama];
+                });
+        }
+
         // Load submissions for this session limited to assigned units (or all if allowed)
         $query = AuditeeSubmission::with([
                 'standar:id,nama',
@@ -62,6 +74,8 @@ class AuditeeSubmissionReviewController extends Controller
                     'standar' => $s->standar ? ['id' => $s->standar->id, 'nama' => $s->standar->nama] : null,
                     'indikator' => $s->indikator ? ['id' => $s->indikator->id, 'nama' => $s->indikator->nama] : null,
                     'pertanyaan' => $s->pertanyaan ? ['id' => $s->pertanyaan->id, 'isi' => $s->pertanyaan->isi] : null,
+                    // expose auditee narrative for auditor view
+                    'answer_comment' => $s->answer_comment,
                     'documents' => $s->documents->map(function ($d) {
                         return [
                             'id' => $d->id,
@@ -85,6 +99,7 @@ class AuditeeSubmissionReviewController extends Controller
         return Inertia::render('audit-internal/AuditeeReviewIndex', [
             'session' => $session,
             'assigned_unit_ids' => $assignedUnitIds,
+            'assigned_units' => $assignedUnits,
             'submissions' => $submissions,
         ]);
     }

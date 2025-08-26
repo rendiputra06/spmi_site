@@ -50,7 +50,45 @@ class AuditSessionDetailController extends Controller
                 'score',
                 'submitted_by',
                 'submitted_at',
-            ]);
+            ])
+            ->map(function ($s) {
+                return [
+                    'id' => $s->id,
+                    'unit' => $s->unit ? [
+                        'id' => $s->unit->id,
+                        'nama' => $s->unit->nama,
+                        'tipe' => $s->unit->tipe,
+                    ] : null,
+                    'standar' => $s->standar ? [
+                        'id' => $s->standar->id,
+                        'kode' => $s->standar->kode,
+                        'nama' => $s->standar->nama,
+                    ] : null,
+                    'indikator' => $s->indikator ? [
+                        'id' => $s->indikator->id,
+                        'nama' => $s->indikator->nama,
+                    ] : null,
+                    'pertanyaan' => $s->pertanyaan ? [
+                        'id' => $s->pertanyaan->id,
+                        'isi' => $s->pertanyaan->isi,
+                    ] : null,
+                    'note' => $s->note,
+                    'status' => $s->status,
+                    // keep original auditee score if any (not used in UI averages anymore)
+                    'score' => $s->score,
+                    'submitted_by' => $s->submitted_by,
+                    'submitted_at' => optional($s->submitted_at)->toDateTimeString(),
+                    'auditorReview' => $s->auditorReview ? [
+                        'score' => $s->auditorReview->score,
+                        'reviewer_note' => $s->auditorReview->reviewer_note,
+                        'outcome_status' => $s->auditorReview->outcome_status,
+                        'is_submitted' => (bool) $s->auditorReview->is_submitted,
+                        'submitted_at' => optional($s->auditorReview->submitted_at)->toDateTimeString(),
+                        'reviewed_by' => $s->auditorReview->reviewed_by,
+                        'reviewed_at' => optional($s->auditorReview->reviewed_at)->toDateTimeString(),
+                    ] : null,
+                ];
+            });
 
         return Inertia::render('audit-internal/Detail', [
             'session' => $session,

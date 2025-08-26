@@ -56,15 +56,12 @@ export default function ReportTable({ rows }: { rows: ReportRow[] }) {
               </div>
             )}
             <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-              <span className="rounded bg-blue-50 px-2 py-0.5 text-blue-700 dark:bg-blue-400/10 dark:text-blue-300">
-                Auditee: {r.score ?? '-'}
-              </span>
               <span className="rounded bg-emerald-50 px-2 py-0.5 text-emerald-700 dark:bg-emerald-400/10 dark:text-emerald-300">
-                Auditor: {r.auditorReview?.score ?? '-'}
+                Skor Auditor: {r.auditorReview?.score ?? '-'}
               </span>
-              {r.status && (
+              {(r.auditorReview?.outcome_status ?? r.status) && (
                 <span className="rounded bg-gray-100 px-2 py-0.5 text-gray-700 dark:bg-gray-400/10 dark:text-gray-300">
-                  {r.status}
+                  {(r.auditorReview?.outcome_status ?? r.status) as string}
                 </span>
               )}
               {r.auditorReview?.reviewed_at && (
@@ -85,9 +82,8 @@ export default function ReportTable({ rows }: { rows: ReportRow[] }) {
               <th className="p-2">Unit</th>
               <th className="p-2">Standar</th>
               <th className="p-2">Pertanyaan</th>
-              <th className="p-2 text-center">Auditee</th>
-              <th className="p-2 text-center">Auditor</th>
-              <th className="p-2">Status</th>
+              <th className="p-2 text-center">Skor Auditor</th>
+              <th className="p-2">Outcome Status</th>
               <th className="p-2">Dikirim</th>
               <th className="p-2">Direview</th>
             </tr>
@@ -125,7 +121,6 @@ export default function ReportTable({ rows }: { rows: ReportRow[] }) {
                     <div className="mt-1 text-xs text-muted-foreground">Catatan Auditor: {r.auditorReview.reviewer_note}</div>
                   )}
                 </td>
-                <td className="p-2 text-center whitespace-nowrap">{r.score ?? '-'}</td>
                 <td className="p-2 text-center whitespace-nowrap">{r.auditorReview?.score ?? '-'}</td>
                 <td className="p-2 whitespace-nowrap">{(r.auditorReview?.outcome_status ?? r.status) ?? '-'}</td>
                 <td className="p-2 whitespace-nowrap">{formatDateTime(r.submitted_at)}</td>

@@ -6,10 +6,12 @@ type Session = any;
 interface InfoBarAuditorProps {
   session: Session;
   assignedUnitIds: number[];
+  assignedUnits?: { id: number; nama: string }[];
   auditorName?: string;
 }
 
-export default function InfoBarAuditor({ session, assignedUnitIds, auditorName }: InfoBarAuditorProps) {
+export default function InfoBarAuditor({ session, assignedUnitIds, assignedUnits = [], auditorName }: InfoBarAuditorProps) {
+  const unitNameById = new Map<number, string>(assignedUnits.map(u => [u.id, u.nama]));
   return (
     <div className="space-y-4">
       <div className="bg-muted/30 rounded-lg border p-4">
@@ -29,6 +31,7 @@ export default function InfoBarAuditor({ session, assignedUnitIds, auditorName }
           {auditorName && (
             <Badge variant="outline">Auditor: {auditorName}</Badge>
           )}
+          
         </div>
       </div>
 
@@ -38,7 +41,7 @@ export default function InfoBarAuditor({ session, assignedUnitIds, auditorName }
           <div className="flex flex-wrap gap-2">
             {assignedUnitIds.map((id) => (
               <Badge key={id} variant="outline">
-                Unit #{id}
+                {unitNameById.get(id) || `Unit #${id}`}
               </Badge>
             ))}
           </div>
