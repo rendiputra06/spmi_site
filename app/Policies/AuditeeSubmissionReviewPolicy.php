@@ -24,13 +24,13 @@ class AuditeeSubmissionReviewPolicy
         $dosenId = optional(optional($user)->dosen)->id;
         if (!$dosenId) return false;
 
-        $assignedUnitIds = AuditSessionUnitAuditor::whereHas('auditSessionUnit', function ($q) use ($submission) {
+        $assignedUnitIds = AuditSessionUnitAuditor::whereHas('sessionUnit', function ($q) use ($submission) {
                 $q->where('audit_session_id', $submission->audit_session_id);
             })
             ->where('dosen_id', $dosenId)
-            ->with('auditSessionUnit')
+            ->with('sessionUnit')
             ->get()
-            ->pluck('auditSessionUnit.unit_id')
+            ->pluck('sessionUnit.unit_id')
             ->unique();
 
         return $assignedUnitIds->contains($submission->unit_id);

@@ -24,6 +24,9 @@ export function DocumentCard({ item, onPreview, onEdit }: { item: DocumentItem; 
           <div className="text-sm text-muted-foreground">
             Unit: {item.unit?.nama || '-'} • Kategori: {item.category || '-'} • Status: {item.status}
           </div>
+          <div className="text-xs text-muted-foreground mt-1">
+            Dibuat: {item.created_at ? new Date(item.created_at).toLocaleString() : '-'}
+          </div>
           {item.description && <p className="text-sm mt-1">{item.description}</p>}
         </div>
         <div className="text-xs text-muted-foreground whitespace-nowrap">

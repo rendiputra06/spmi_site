@@ -93,6 +93,8 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     // Auditor review routes
     Route::get('audit-internal/{session}/auditee-review', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'index']);
     Route::post('auditee-submissions/{submission}/review', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'review']);
+    Route::post('audit-internal/{session}/auditor-review/submit', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'submit']);
+    Route::post('audit-internal/{session}/auditor-review/unsubmit', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'unsubmit']);
 
     // impersonation routes
     Route::post('/users/{user}/impersonate', [UserImpersonationController::class, 'start'])->name('users.impersonate.start');

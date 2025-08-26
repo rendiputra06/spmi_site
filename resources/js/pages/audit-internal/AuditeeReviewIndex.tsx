@@ -1,28 +1,26 @@
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
 import { router, usePage } from '@inertiajs/react';
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import InfoBarAuditor from './components/InfoBarAuditor';
 import StatsBarAuditor from './components/StatsBarAuditor';
-import DocsPreviewModal from './components/DocsPreviewModal';
+import AuditeeReviewTable from './components/AuditeeReviewTable';
 
-interface DocItem {
-    id: number;
-    title: string;
-    mime?: string | null;
-    size?: number | null;
-    download_url: string;
-}
 interface SubmissionRow {
     id: number;
     unit_id: number;
     standar: { id: number; nama: string } | null;
     indikator: { id: number; nama: string } | null;
     pertanyaan: { id: number; isi: string } | null;
-    documents: DocItem[];
-    review: { score?: number | string | null; reviewer_note?: string | null } | null;
+    documents: any[];
+    review: {
+        score?: number | string | null;
+        reviewer_note?: string | null;
+        outcome_status?: string | null;
+        special_note?: string | null;
+        is_submitted?: boolean | null;
+        submitted_at?: string | null;
+    } | null;
 }
 
 interface PageProps {
@@ -36,33 +34,44 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, submiss
     const authUser = (page?.props as any)?.auth?.user;
     const auditorName: string | undefined = authUser?.name;
     const [saving, setSaving] = useState<Record<number, boolean>>({});
-    const [draft, setDraft] = useState<Record<number, { score?: string; reviewer_note?: string }>>(() => {
-        const init: Record<number, { score?: string; reviewer_note?: string }> = {};
+    const [draft, setDraft] = useState<Record<number, { score?: string; reviewer_note?: string; outcome_status?: string; special_note?: string }>>(() => {
+        const init: Record<number, { score?: string; reviewer_note?: string; outcome_status?: string; special_note?: string }> = {};
         submissions.forEach((s) => {
             init[s.id] = {
                 score: s.review?.score !== undefined && s.review?.score !== null ? String(s.review?.score) : '',
                 reviewer_note: s.review?.reviewer_note || '',
+                outcome_status: s.review?.outcome_status || '',
+                special_note: s.review?.special_note || '',
             };
         });
         return init;
     });
 
-    const handleChange = (id: number, field: 'score' | 'reviewer_note', value: string) => {
+    const handleChange = (
+        id: number,
+        field: 'score' | 'reviewer_note' | 'outcome_status' | 'special_note',
+        value: string,
+    ) => {
         setDraft((prev) => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
     };
 
     const saveRow = (id: number) => {
         const payload = draft[id] || {};
-        // normalize score to 1 decimal string or null
+        // score comes from radio: '0' | '1' | '2' or ''
         let score: number | null = null;
-        if (payload.score) {
-            const n = parseFloat(payload.score);
-            if (!isNaN(n)) score = Math.round(n * 10) / 10;
+        if (payload.score !== undefined && payload.score !== '') {
+            const n = parseFloat(String(payload.score));
+            if (!isNaN(n)) score = n;
         }
         setSaving((prev) => ({ ...prev, [id]: true }));
         router.post(
             `/auditee-submissions/${id}/review`,
-            { score, reviewer_note: payload.reviewer_note || null },
+            {
+                score,
+                reviewer_note: payload.reviewer_note || null,
+                outcome_status: payload.outcome_status || null,
+                special_note: payload.special_note || null,
+            },
             {
                 preserveScroll: true,
                 onFinish: () => setSaving((prev) => ({ ...prev, [id]: false })),
@@ -70,27 +79,53 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, submiss
         );
     };
 
-    const groups = useMemo(() => {
-        // group by standar -> indikator
-        const byStandar: Record<
-            string,
-            { standar?: SubmissionRow['standar']; indikators: Record<string, { indikator?: SubmissionRow['indikator']; rows: SubmissionRow[] }> }
-        > = {};
-        submissions.forEach((row) => {
-            const sKey = row.standar?.id ? String(row.standar.id) : 'null';
-            const iKey = row.indikator?.id ? String(row.indikator.id) : 'null';
-            if (!byStandar[sKey]) byStandar[sKey] = { standar: row.standar || undefined, indikators: {} };
-            if (!byStandar[sKey].indikators[iKey]) byStandar[sKey].indikators[iKey] = { indikator: row.indikator || undefined, rows: [] };
-            byStandar[sKey].indikators[iKey].rows.push(row);
-        });
-        return byStandar;
-    }, [submissions]);
+    // Determine unit and submission state
+    const unitId: number | undefined = submissions[0]?.unit_id ?? assigned_unit_ids?.[0];
+    const isUnitSubmitted: boolean = submissions.length > 0 && submissions.every((r) => !!r.review?.is_submitted);
 
-    // Document preview state
-    const [previewOpen, setPreviewOpen] = useState(false);
-    const [previewDoc, setPreviewDoc] = useState<DocItem | null>(null);
-    const openPreview = (doc: DocItem) => { setPreviewDoc(doc); setPreviewOpen(true); };
-    const closePreview = () => { setPreviewOpen(false); setPreviewDoc(null); };
+    const submitUnit = () => {
+        if (!unitId) return;
+        // Client-side validation: ensure all have score and outcome_status
+        const missing = submissions.filter((r) => {
+            const s = draft[r.id];
+            const hasScore = s && s.score !== undefined && s.score !== '';
+            const hasStatus = s && s.outcome_status && s.outcome_status !== '';
+            return !hasScore || !hasStatus;
+        });
+        if (missing.length > 0) {
+            alert(`Tidak bisa submit. Masih ada ${missing.length} pertanyaan yang belum memiliki skor atau status.`);
+            return;
+        }
+        router.post(
+            `/audit-internal/${session.id}/auditor-review/submit`,
+            { unit_id: unitId },
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
+    const unsubmitUnit = () => {
+        if (!unitId) return;
+        router.post(
+            `/audit-internal/${session.id}/auditor-review/unsubmit`,
+            { unit_id: unitId },
+            {
+                preserveScroll: true,
+            },
+        );
+    };
+
+    // Score modal state
+    const [scoreModal, setScoreModal] = useState<{ open: boolean; rowId?: number }>(() => ({ open: false }));
+    const openScore = (rowId: number) => setScoreModal({ open: true, rowId });
+    const closeScore = () => setScoreModal({ open: false });
+    const setScore = (val: '0' | '1' | '2') => {
+        if (!scoreModal.rowId) return;
+        handleChange(scoreModal.rowId, 'score', val);
+    };
+
+    // table handled by child component now
     return (
         <AppLayout
             title={`Auditor Review - ${session?.nama ?? ''}`}
@@ -103,94 +138,22 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, submiss
                 <InfoBarAuditor session={session} assignedUnitIds={assigned_unit_ids} auditorName={auditorName} />
                 <StatsBarAuditor submissions={submissions} />
 
-                <div className="overflow-x-auto rounded-lg border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-3 py-2 text-left">Standar / Indikator / Pertanyaan</th>
-                                <th className="px-3 py-2 text-left">Dokumen</th>
-                                <th className="px-3 py-2 text-left" style={{ width: 150 }}>
-                                    Skor (0.1–2.0)
-                                </th>
-                                <th className="px-3 py-2 text-left" style={{ width: 320 }}>
-                                    Komentar
-                                </th>
-                                <th className="px-3 py-2 text-left" style={{ width: 120 }}>
-                                    Aksi
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {Object.entries(groups).map(([sKey, sVal]) => (
-                                <React.Fragment key={`standar-${sKey}`}>
-                                    <tr className="bg-muted/30">
-                                        <td className="px-3 py-2 font-semibold" colSpan={5}>
-                                            {sVal.standar?.nama || 'Tanpa Standar'}
-                                        </td>
-                                    </tr>
-                                    {Object.entries(sVal.indikators).map(([iKey, iVal]) => (
-                                        <React.Fragment key={`indikator-${sKey}-${iKey}`}>
-                                            <tr className="bg-muted/20">
-                                                <td className="px-3 py-2 pl-6 font-medium" colSpan={5}>
-                                                    {iVal.indikator?.nama || 'Tanpa Indikator'}
-                                                </td>
-                                            </tr>
-                                            {iVal.rows.map((r) => (
-                                                <tr key={`q-${r.id}`} className="align-top">
-                                                    <td className="px-3 py-2 pl-10">- {r.pertanyaan?.isi}</td>
-                                                    <td className="px-3 py-2">
-                                                        <div className="flex flex-col gap-1">
-                                                            {r.documents?.length ? (
-                                                                r.documents.map((d) => (
-                                                                    <button
-                                                                        key={d.id}
-                                                                        className="text-left text-xs text-blue-600 underline hover:text-blue-700"
-                                                                        onClick={() => openPreview(d)}
-                                                                    >
-                                                                        {d.title}
-                                                                    </button>
-                                                                ))
-                                                            ) : (
-                                                                <span className="text-muted-foreground">Tidak ada dokumen</span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Input
-                                                            type="number"
-                                                            inputMode="decimal"
-                                                            step={0.1}
-                                                            min={0.1}
-                                                            max={2.0}
-                                                            value={draft[r.id]?.score ?? ''}
-                                                            onChange={(e) => handleChange(r.id, 'score', e.target.value)}
-                                                            placeholder="0.1 - 2.0"
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Textarea
-                                                            value={draft[r.id]?.reviewer_note ?? ''}
-                                                            onChange={(e) => handleChange(r.id, 'reviewer_note', e.target.value)}
-                                                            placeholder="Catatan reviewer"
-                                                            rows={2}
-                                                        />
-                                                    </td>
-                                                    <td className="px-3 py-2">
-                                                        <Button size="sm" onClick={() => saveRow(r.id)} disabled={!!saving[r.id]}>
-                                                            {saving[r.id] ? 'Menyimpan...' : 'Simpan'}
-                                                        </Button>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </React.Fragment>
-                                    ))}
-                                </React.Fragment>
-                            ))}
-                        </tbody>
-                    </table>
+                <div className="flex items-center justify-between">
+                    <div />
+                    {isUnitSubmitted ? (
+                        <Button onClick={unsubmitUnit} variant="destructive">Batalkan Submit</Button>
+                    ) : (
+                        <Button onClick={submitUnit} variant="default">Submit Review Unit</Button>
+                    )}
                 </div>
-                {/* Preview Modal */}
-                <DocsPreviewModal open={previewOpen} onClose={closePreview} doc={previewDoc} />
+                <AuditeeReviewTable
+                    submissions={submissions}
+                    draft={draft}
+                    saving={saving}
+                    isUnitSubmitted={isUnitSubmitted}
+                    onChange={handleChange}
+                    onSaveRow={saveRow}
+                />
             </div>
         </AppLayout>
     );
