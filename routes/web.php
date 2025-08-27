@@ -100,6 +100,11 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('audit-internal/{session}/auditor-review/submit', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'submit']);
     Route::post('audit-internal/{session}/auditor-review/unsubmit', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'unsubmit']);
 
+    // Auditor reports (upload laporan auditor)
+    Route::post('audit-internal/{session}/auditor-reports', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'storeReport'])->name('auditor-reports.store');
+    Route::delete('audit-internal/{session}/auditor-reports/{report}', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'destroyReport'])->name('auditor-reports.destroy');
+    Route::get('auditor-reports/{report}/download', [\App\Http\Controllers\AuditeeSubmissionReviewController::class, 'downloadReport'])->name('auditor-reports.download');
+
     // impersonation routes
     Route::post('/users/{user}/impersonate', [UserImpersonationController::class, 'start'])->name('users.impersonate.start');
     Route::delete('/impersonate/stop', [UserImpersonationController::class, 'stop'])->name('users.impersonate.stop');

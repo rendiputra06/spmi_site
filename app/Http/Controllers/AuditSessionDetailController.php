@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditSession;
 use App\Models\AuditSessionUnit;
 use App\Models\AuditSessionUnitAuditor;
+use App\Models\AuditSessionAuditorReport;
 use App\Models\StandarMutu;
 use App\Models\Unit;
 use App\Models\Dosen;
@@ -90,6 +91,25 @@ class AuditSessionDetailController extends Controller
                 ];
             });
 
+        // Tambahkan laporan auditor (file) yang diunggah pada sesi ini
+        $auditorReports = AuditSessionAuditorReport::with(['uploader:id,name'])
+            ->where('audit_session_id', $session->id)
+            ->latest()
+            ->get()
+            ->map(function ($r) {
+                return [
+                    'id' => $r->id,
+                    'unit_id' => $r->unit_id,
+                    'title' => $r->title,
+                    'notes' => $r->notes,
+                    'mime' => $r->mime,
+                    'size' => $r->size,
+                    'uploaded_by' => optional($r->uploader)->name,
+                    'created_at' => optional($r->created_at)->toDateTimeString(),
+                    'download_url' => route('auditor-reports.download', ['report' => $r->id]),
+                ];
+            });
+
         return Inertia::render('audit-internal/Detail', [
             'session' => $session,
             'standar_options' => $allStandars,
@@ -102,6 +122,7 @@ class AuditSessionDetailController extends Controller
                 'total_unit' => $totalUnit,
             ],
             'report' => $submissions,
+            'auditor_reports' => $auditorReports,
         ]);
     }
 

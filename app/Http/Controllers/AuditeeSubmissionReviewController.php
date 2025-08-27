@@ -6,9 +6,12 @@ use App\Models\AuditSession;
 use App\Models\AuditSessionUnitAuditor;
 use App\Models\AuditeeSubmission;
 use App\Models\AuditorReview;
+use App\Models\AuditSessionAuditorReport;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 
 class AuditeeSubmissionReviewController extends Controller
@@ -144,11 +147,34 @@ class AuditeeSubmissionReviewController extends Controller
             ['pertanyaan.id', 'asc'],
         ])->values();
 
+        // Load existing auditor reports limited to target units within this session
+        $auditorReports = AuditSessionAuditorReport::query()
+            ->where('audit_session_id', $sessionId)
+            ->when($targetUnitIds->count() > 0, function ($q) use ($targetUnitIds) { $q->whereIn('unit_id', $targetUnitIds); }, function ($q) {
+                $q->whereRaw('1=0');
+            })
+            ->latest()
+            ->get()
+            ->map(function ($r) {
+                return [
+                    'id' => $r->id,
+                    'unit_id' => $r->unit_id,
+                    'title' => $r->title,
+                    'notes' => $r->notes,
+                    'mime' => $r->mime,
+                    'size' => $r->size,
+                    'uploaded_by' => optional($r->uploader)->name,
+                    'created_at' => optional($r->created_at)->toIso8601String(),
+                    'download_url' => route('auditor-reports.download', ['report' => $r->id]),
+                ];
+            });
+
         return Inertia::render('audit-internal/AuditeeReviewIndex', [
             'session' => $session,
             'assigned_unit_ids' => $assignedUnitIds,
             'assigned_units' => $assignedUnits,
             'submissions' => $submissions,
+            'auditor_reports' => $auditorReports,
         ]);
     }
 
@@ -285,5 +311,161 @@ class AuditeeSubmissionReviewController extends Controller
             ]);
 
         return back()->with('success', 'Submit review auditor untuk unit telah dibatalkan');
+    }
+
+    public function storeReport(Request $request, $sessionId)
+    {
+        $session = AuditSession::findOrFail($sessionId);
+        $user = Auth::user();
+
+        // Determine allowed unit IDs for this auditor in this session
+        $assignedUnitIds = AuditSessionUnitAuditor::with(['sessionUnit','dosen'])
+            ->whereHas('sessionUnit', function ($q) use ($session) {
+                $q->where('audit_session_id', $session->id);
+            })
+            ->whereHas('dosen', function ($q) {
+                $q->where('user_id', Auth::id());
+            })
+            ->get()
+            ->pluck('sessionUnit.unit_id')
+            ->unique()
+            ->values();
+
+        $validated = $request->validate([
+            'unit_id' => 'required|integer',
+            'title' => 'nullable|string|max:255',
+            'notes' => 'nullable|string',
+            'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx',
+        ]);
+
+        $unitId = (int) $validated['unit_id'];
+        if (!$assignedUnitIds->contains($unitId) && !optional($user)->hasRole('admin')) {
+            abort(403, 'Anda tidak ditugaskan pada unit ini.');
+        }
+
+        $report = AuditSessionAuditorReport::create([
+            'audit_session_id' => $session->id,
+            'unit_id' => $unitId,
+            'uploaded_by' => $user->id,
+            'title' => $validated['title'] ?? null,
+            'notes' => $validated['notes'] ?? null,
+            'file_path' => '',
+        ]);
+
+        // Attach media and sync legacy fields
+        $media = $report->addMedia($request->file('file'))->toMediaCollection('auditor_reports');
+        $disk = Storage::disk($media->disk);
+        $diskRoot = $disk->path('');
+        $relativePath = ltrim(str_replace($diskRoot, '', $media->getPath()), '/');
+        $report->file_path = $relativePath;
+        $report->mime = $media->mime_type;
+        $report->size = $media->size;
+        $report->save();
+
+        return back()->with('success', 'Laporan auditor berhasil diunggah');
+    }
+
+    public function destroyReport(Request $request, $sessionId, AuditSessionAuditorReport $report)
+    {
+        $session = AuditSession::findOrFail($sessionId);
+        $user = Auth::user();
+
+        if ($report->audit_session_id !== (int) $session->id) {
+            abort(404);
+        }
+
+        // Determine allowed unit IDs for this auditor in this session
+        $assignedUnitIds = AuditSessionUnitAuditor::with(['sessionUnit','dosen'])
+            ->whereHas('sessionUnit', function ($q) use ($session) {
+                $q->where('audit_session_id', $session->id);
+            })
+            ->whereHas('dosen', function ($q) {
+                $q->where('user_id', Auth::id());
+            })
+            ->get()
+            ->pluck('sessionUnit.unit_id');
+
+        $canDelete = optional($user)->hasRole('admin') || ($assignedUnitIds->contains($report->unit_id) && $report->uploaded_by === $user->id);
+        if (!$canDelete) {
+            abort(403);
+        }
+
+        if ($media = $report->getFirstMedia('auditor_reports')) {
+            $media->delete();
+        }
+        $report->delete();
+
+        return back()->with('success', 'Laporan auditor dihapus');
+    }
+
+    public function downloadReport(AuditSessionAuditorReport $report)
+    {
+        // Simple authorization: must be assigned auditor of the session or admin
+        $user = Auth::user();
+        $assignedUnitIds = AuditSessionUnitAuditor::with('sessionUnit')
+            ->whereHas('sessionUnit', function ($q) use ($report) {
+                $q->where('audit_session_id', $report->audit_session_id);
+            })
+            ->whereHas('dosen', function ($q) {
+                $q->where('user_id', Auth::id());
+            })
+            ->get()
+            ->pluck('sessionUnit.unit_id');
+
+        if (!optional($user)->hasRole('admin') && !$assignedUnitIds->contains($report->unit_id)) {
+            abort(403);
+        }
+
+        $media = $report->getFirstMedia('auditor_reports');
+        $inline = request()->boolean('inline');
+        if ($media) {
+            $ext = pathinfo($media->file_name, PATHINFO_EXTENSION);
+            $baseTitle = $report->title ?: 'laporan-auditor';
+            $filename = Str::slug($baseTitle) . ($ext ? ".{$ext}" : '');
+            $disk = Storage::disk($media->disk);
+            $diskRoot = $disk->path('');
+            $relativePath = ltrim(str_replace($diskRoot, '', $media->getPath()), '/');
+            if ($inline) {
+                if ($media->disk === 'public' || $media->disk === 'local') {
+                    return response()->file($media->getPath(), [
+                        'Content-Type' => $media->mime_type,
+                        'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                    ]);
+                }
+                $stream = $disk->readStream($relativePath);
+                return response()->stream(function () use ($stream) {
+                    fpassthru($stream);
+                    if (is_resource($stream)) { fclose($stream); }
+                }, 200, [
+                    'Content-Type' => $media->mime_type,
+                    'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                ]);
+            } else {
+                if (method_exists($disk, 'download')) {
+                    return $disk->download($relativePath, $filename);
+                }
+                $stream = $disk->readStream($relativePath);
+                return response()->streamDownload(function () use ($stream) {
+                    fpassthru($stream);
+                    if (is_resource($stream)) { fclose($stream); }
+                }, $filename, [
+                    'Content-Type' => $media->mime_type,
+                ]);
+            }
+        }
+
+        if (!$report->file_path || !Storage::disk('public')->exists($report->file_path)) {
+            abort(404);
+        }
+        $ext = pathinfo($report->file_path, PATHINFO_EXTENSION);
+        $baseTitle = $report->title ?: 'laporan-auditor';
+        $filename = Str::slug($baseTitle) . ($ext ? ".{$ext}" : '');
+        if ($inline) {
+            return response()->file(Storage::disk('public')->path($report->file_path), [
+                'Content-Type' => $report->mime ?? 'application/octet-stream',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            ]);
+        }
+        return Storage::disk('public')->download($report->file_path, $filename);
     }
 }

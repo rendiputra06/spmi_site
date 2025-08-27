@@ -7,6 +7,18 @@ import UnitAuditorTab from './components/detail/UnitAuditorTab';
 import SessionInfo from './components/detail/SessionInfo';
 import ReportTab from './components/detail/ReportTab';
 
+type AuditorReportItem = {
+  id: number;
+  unit_id: number;
+  title?: string;
+  notes?: string;
+  mime?: string;
+  size?: number;
+  uploaded_by?: string;
+  created_at?: string;
+  download_url: string;
+};
+
 interface DetailProps {
   session: AuditSession & {
     standars: StandarOption[];
@@ -21,13 +33,19 @@ interface DetailProps {
   auditor_options: AuditorOption[];
   stats: { total_standar: number; total_indikator: number; total_pertanyaan: number; total_unit: number };
   report: ReportRow[];
+  auditor_reports?: AuditorReportItem[];
 }
 
 type TabKey = 'standar' | 'unit' | 'laporan';
 
-export default function Detail({ session, standar_options, unit_options, auditor_options, stats, report }: DetailProps) {
+export default function Detail({ session, standar_options, unit_options, auditor_options, stats, report, auditor_reports = [] }: DetailProps) {
   const [tab, setTab] = useState<TabKey>('standar');
   const selectedStandarIds = useMemo(() => (session.standars || []).map((s) => s.id), [session.standars]);
+  const unitNameById = useMemo(() => {
+    const map = new Map<number, string>();
+    (session.units || []).forEach((su) => { if (su.unit) map.set(su.unit.id, su.unit.nama); });
+    return map;
+  }, [session.units]);
 
   return (
     <AppLayout
@@ -75,9 +93,40 @@ export default function Detail({ session, standar_options, unit_options, auditor
         )}
 
         {tab === 'laporan' && (
-          <div className="rounded-lg border p-4">
-            <h3 className="mb-4 text-lg font-semibold">Laporan Auditor</h3>
-            <ReportTab rows={report} />
+          <div className="space-y-4">
+            <div className="rounded-lg border p-4">
+              <h3 className="mb-4 text-lg font-semibold">Laporan Auditor (Analitik)</h3>
+              <ReportTab rows={report} />
+            </div>
+
+            <div className="rounded-lg border">
+              <div className="p-4 border-b">
+                <h3 className="text-lg font-semibold">Dokumen Laporan Auditor</h3>
+                <p className="text-sm text-muted-foreground">Daftar dokumen yang diunggah oleh auditor pada sesi ini.</p>
+              </div>
+              <div className="divide-y">
+                {auditor_reports.length === 0 && (
+                  <div className="p-4 text-sm text-muted-foreground">Belum ada dokumen.</div>
+                )}
+                {auditor_reports.map((r) => (
+                  <div key={r.id} className="p-4 flex items-center justify-between gap-4">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{r.title || 'Laporan Auditor'}</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {unitNameById.get(r.unit_id) ? `Unit: ${unitNameById.get(r.unit_id)}` : ''}
+                        {r.uploaded_by ? ` • Oleh ${r.uploaded_by}` : ''}
+                        {r.size ? ` • ${(r.size / 1024 / 1024).toFixed(2)} MB` : ''}
+                        {r.created_at ? ` • ${r.created_at}` : ''}
+                      </div>
+                      {r.notes && <div className="text-xs text-muted-foreground mt-1 line-clamp-2">{r.notes}</div>}
+                    </div>
+                    <div className="shrink-0">
+                      <a className="text-sm underline" href={`${r.download_url}?inline=1`} target="_blank" rel="noreferrer">Lihat / Unduh</a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>
