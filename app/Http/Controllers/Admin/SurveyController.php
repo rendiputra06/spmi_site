@@ -12,7 +12,7 @@ class SurveyController extends Controller
     public function index()
     {
         $surveys = Survey::query()
-            ->select(['id','name','is_active','starts_at','ends_at','created_at'])
+            ->select(['id','name','description','is_active','starts_at','ends_at','created_at'])
             ->withCount(['questions','assignments'])
             ->latest('id')
             ->paginate(10)
@@ -39,14 +39,16 @@ class SurveyController extends Controller
             'starts_at' => ['nullable','date'],
             'ends_at' => ['nullable','date','after_or_equal:starts_at'],
         ]);
-        $survey = Survey::create($data);
-        return redirect()->route('admin.surveys.edit', $survey)->with('success','Survey created');
+        // Normalize boolean in case checkbox is unchecked/not sent
+        $data['is_active'] = $request->boolean('is_active');
+        Survey::create($data);
+        return back()->with('success','Survey created');
     }
 
     public function edit(Survey $survey)
     {
         $survey->load(['questions.options']);
-        return Inertia::render('admin/surveys/Edit', [
+        return Inertia::render('admin/surveys/Detail', [
             'survey' => $survey,
         ]);
     }
@@ -60,6 +62,7 @@ class SurveyController extends Controller
             'starts_at' => ['nullable','date'],
             'ends_at' => ['nullable','date','after_or_equal:starts_at'],
         ]);
+        $data['is_active'] = $request->boolean('is_active');
         $survey->update($data);
         return back()->with('success','Survey updated');
     }

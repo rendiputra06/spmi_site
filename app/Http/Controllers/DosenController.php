@@ -147,4 +147,30 @@ class DosenController extends Controller
         Dosen::findOrFail($id)->delete();
         return redirect()->route('dosen.index');
     }
+
+    /**
+     * Lightweight JSON endpoint for autocomplete.
+     * Query params: q (string), unit_id (optional), limit (default 10, max 50)
+     */
+    public function jsonIndex(Request $request)
+    {
+        $q = (string) $request->input('q', '');
+        $unitId = $request->input('unit_id');
+        $limit = (int) $request->input('limit', 10);
+        $limit = max(1, min(50, $limit));
+
+        $query = Dosen::query()->select('id', 'nama', 'nidn')->orderBy('nama');
+        if ($q !== '') {
+            $query->where(function($qb) use ($q) {
+                $qb->where('nama', 'like', "%$q%")
+                   ->orWhere('nidn', 'like', "%$q%");
+            });
+        }
+        if ($unitId) {
+            $query->where('unit_id', $unitId);
+        }
+        $results = $query->limit($limit)->get();
+
+        return response()->json($results);
+    }
 }

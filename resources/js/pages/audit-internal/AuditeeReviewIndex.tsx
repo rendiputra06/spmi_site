@@ -1,28 +1,14 @@
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import { router, usePage } from '@inertiajs/react';
+import { toast } from 'sonner';
 import React, { useState } from 'react';
 import InfoBarAuditor from './components/InfoBarAuditor';
 import StatsBarAuditor from './components/StatsBarAuditor';
-import AuditeeReviewTable from './components/AuditeeReviewTable';
+import AuditeeReviewTable, { SubmissionRow as TableSubmissionRow } from './components/AuditeeReviewTable';
 
-interface SubmissionRow {
-    id: number;
-    unit_id: number;
-    standar: { id: number; nama: string } | null;
-    indikator: { id: number; nama: string } | null;
-    pertanyaan: { id: number; isi: string } | null;
-    answer_comment?: string | null;
-    documents: any[];
-    review: {
-        score?: number | string | null;
-        reviewer_note?: string | null;
-        outcome_status?: string | null;
-        special_note?: string | null;
-        is_submitted?: boolean | null;
-        submitted_at?: string | null;
-    } | null;
-}
+// Use the exact row type from the table to avoid duplication/mismatch
+type SubmissionRow = TableSubmissionRow;
 
 interface PageProps {
     session: any;
@@ -39,12 +25,14 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, assigne
     const [draft, setDraft] = useState<Record<number, { score?: string; reviewer_note?: string; outcome_status?: string; special_note?: string }>>(() => {
         const init: Record<number, { score?: string; reviewer_note?: string; outcome_status?: string; special_note?: string }> = {};
         submissions.forEach((s) => {
-            init[s.id] = {
-                score: s.review?.score !== undefined && s.review?.score !== null ? String(s.review?.score) : '',
-                reviewer_note: s.review?.reviewer_note || '',
-                outcome_status: s.review?.outcome_status || '',
-                special_note: s.review?.special_note || '',
-            };
+            if (s.id !== null) {
+                init[s.id] = {
+                    score: s.review?.score !== undefined && s.review?.score !== null ? String(s.review?.score) : '',
+                    reviewer_note: s.review?.reviewer_note || '',
+                    outcome_status: s.review?.outcome_status || '',
+                    special_note: s.review?.special_note || '',
+                };
+            }
         });
         return init;
     });
@@ -58,6 +46,7 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, assigne
     };
 
     const saveRow = (id: number) => {
+        if (id === null || id === undefined) return;
         const payload = draft[id] || {};
         // score comes from radio: '0' | '1' | '2' or ''
         let score: number | null = null;
@@ -83,19 +72,20 @@ export default function AuditeeReviewIndex({ session, assigned_unit_ids, assigne
 
     // Determine unit and submission state
     const unitId: number | undefined = submissions[0]?.unit_id ?? assigned_unit_ids?.[0];
-    const isUnitSubmitted: boolean = submissions.length > 0 && submissions.every((r) => !!r.review?.is_submitted);
+    const reviewableRows = submissions.filter((r) => r.id !== null);
+    const isUnitSubmitted: boolean = reviewableRows.length > 0 && reviewableRows.every((r) => !!r.review?.is_submitted);
 
     const submitUnit = () => {
         if (!unitId) return;
         // Client-side validation: ensure all have score and outcome_status
-        const missing = submissions.filter((r) => {
-            const s = draft[r.id];
-            const hasScore = s && s.score !== undefined && s.score !== '';
-            const hasStatus = s && s.outcome_status && s.outcome_status !== '';
-            return !hasScore || !hasStatus;
+        const missing = reviewableRows.filter((r) => {
+          const s = draft[r.id as number];
+          const hasScore = s && s.score !== undefined && s.score !== '';
+          const hasStatus = s && s.outcome_status && s.outcome_status !== '';
+          return !hasScore || !hasStatus;
         });
         if (missing.length > 0) {
-            alert(`Tidak bisa submit. Masih ada ${missing.length} pertanyaan yang belum memiliki skor atau status.`);
+            toast.error(`Tidak bisa submit. Masih ada ${missing.length} pertanyaan yang belum memiliki skor atau status.`);
             return;
         }
         router.post(

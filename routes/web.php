@@ -54,6 +54,7 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('media', MediaFolderController::class);
     // dosen routes
     Route::resource('dosen', DosenController::class)->only(['index','store','update','destroy']);
+    Route::get('dosen.json', [DosenController::class, 'jsonIndex']);
     // units routes
     Route::resource('units', UnitController::class)->only(['index','store','update','destroy']);
     // periodes routes
@@ -66,8 +67,11 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::delete('audit-internal/{id}/units/{sessionUnitId}', [AuditSessionDetailController::class, 'removeUnit']);
     Route::post('audit-internal/{id}/units/{sessionUnitId}/auditors', [AuditSessionDetailController::class, 'saveAuditors']);
     // standar mutu routes
+    // Place JSON route before resource to prevent it being captured by the resource show route
+    Route::get('standar-mutu/{id}.json', [StandarMutuController::class, 'showJson'])
+        ->whereNumber('id')
+        ->name('standar-mutu.show-json');
     Route::resource('standar-mutu', StandarMutuController::class);
-    Route::get('standar-mutu/{id}.json', [StandarMutuController::class, 'showJson'])->name('standar-mutu.show-json');
     Route::post('standar-mutu/{standar}/indikator', [StandarMutuController::class, 'storeIndikator']);
     Route::put('standar-mutu/{standar}/indikator/{id}', [StandarMutuController::class, 'updateIndikator']);
     Route::delete('standar-mutu/{standar}/indikator/{id}', [StandarMutuController::class, 'destroyIndikator']);

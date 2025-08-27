@@ -9,7 +9,7 @@ interface DocItem {
   download_url: string;
 }
 interface SubmissionRow {
-  id: number;
+  id: number | null;
   documents: DocItem[];
   review: { score?: number | string | null } | null;
 }

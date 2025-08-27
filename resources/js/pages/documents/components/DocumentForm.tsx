@@ -21,6 +21,10 @@ type Props = {
     category?: string | null;
     status?: 'draft' | 'published' | 'archived' | '';
     unit_id?: number | '' | null;
+    // optional current file info for edit mode display
+    file_path?: string;
+    mime?: string | null;
+    size?: number;
   } | null;
   documentId?: number | null;
 };
@@ -232,6 +236,23 @@ export function DocumentForm({ open, onOpenChange, unitOptions, canManageAll, de
                 disabled={processing}
               />
             </div>
+            {mode === 'edit' && !data.file && initialData?.id && (
+              <div className="mt-2 rounded border p-3 text-sm">
+                <div className="mb-1 font-medium">File saat ini</div>
+                <div className="text-muted-foreground">
+                  {(initialData.mime || 'Unknown type')}
+                  {typeof initialData.size === 'number' ? ` • ${(initialData.size / 1024).toFixed(1)} KB` : ''}
+                </div>
+                <div className="mt-2 flex gap-2">
+                  <Button asChild size="sm" variant="outline">
+                    <a href={`/documents/${initialData.id}/download?inline=1`} target="_blank" rel="noreferrer">Preview</a>
+                  </Button>
+                  <Button asChild size="sm" variant="outline">
+                    <a href={`/documents/${initialData.id}/download`}>Unduh</a>
+                  </Button>
+                </div>
+              </div>
+            )}
             {progress && (
               <div className="h-2 w-full bg-muted rounded">
                 <div className="h-2 bg-primary rounded" style={{ width: `${progress.percentage}%` }} />

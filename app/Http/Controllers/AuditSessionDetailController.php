@@ -132,7 +132,11 @@ class AuditSessionDetailController extends Controller
     public function removeUnit($id, $sessionUnitId)
     {
         $su = AuditSessionUnit::where('audit_session_id', $id)->findOrFail($sessionUnitId);
-        $su->delete();
+        \DB::transaction(function() use ($su) {
+            // ensure related auditors removed to avoid orphans
+            $su->auditors()->delete();
+            $su->delete();
+        });
         return back();
     }
 
@@ -141,18 +145,20 @@ class AuditSessionDetailController extends Controller
         $su = AuditSessionUnit::where('audit_session_id', $id)->findOrFail($sessionUnitId);
         $data = $request->validate([
             'auditors' => 'array',
-            'auditors.*.dosen_id' => 'required|exists:dosen,id',
-            'auditors.*.role' => 'required|in:auditor,auditee',
+            'auditors.*.dosen_id' => 'required|distinct|exists:dosen,id',
+            'auditors.*.role' => 'required|in:ketua,anggota',
         ]);
-        // replace
-        $su->auditors()->delete();
-        foreach ($data['auditors'] ?? [] as $a) {
-            AuditSessionUnitAuditor::create([
-                'audit_session_unit_id' => $su->id,
-                'dosen_id' => $a['dosen_id'],
-                'role' => $a['role'],
-            ]);
-        }
+        \DB::transaction(function() use ($su, $data) {
+            // replace atomically
+            $su->auditors()->delete();
+            foreach ($data['auditors'] ?? [] as $a) {
+                AuditSessionUnitAuditor::create([
+                    'audit_session_unit_id' => $su->id,
+                    'dosen_id' => $a['dosen_id'],
+                    'role' => $a['role'],
+                ]);
+            }
+        });
         return back();
     }
 }

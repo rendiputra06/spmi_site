@@ -35,16 +35,6 @@ export function DocumentCard({ item, onPreview, onEdit }: { item: DocumentItem; 
       </div>
       <TooltipProvider>
         <div className="flex gap-2 justify-end">
-          {onEdit && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" onClick={onEdit} aria-label="Edit">
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Edit</TooltipContent>
-            </Tooltip>
-          )}
           {onPreview && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -55,7 +45,17 @@ export function DocumentCard({ item, onPreview, onEdit }: { item: DocumentItem; 
               <TooltipContent>Preview</TooltipContent>
             </Tooltip>
           )}
-          <Tooltip>
+          {onEdit && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" size="sm" onClick={onEdit} aria-label="Edit">
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Edit</TooltipContent>
+            </Tooltip>
+          )}
+          {/* <Tooltip>
             <TooltipTrigger asChild>
               <Button asChild variant="outline" size="sm" aria-label="Unduh">
                 <a
@@ -68,7 +68,7 @@ export function DocumentCard({ item, onPreview, onEdit }: { item: DocumentItem; 
               </Button>
             </TooltipTrigger>
             <TooltipContent>Unduh</TooltipContent>
-          </Tooltip>
+          </Tooltip> */}
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="destructive" size="sm" onClick={onDelete} aria-label="Hapus">

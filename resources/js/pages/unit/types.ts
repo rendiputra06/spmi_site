@@ -8,6 +8,8 @@ export type Unit = {
   leader_id?: number | null;
   leader_nama?: string | null;
   leader_jabatan?: string | null;
+  // eager loaded relation from backend: leaderDosen()
+  leader_dosen?: { id: number; nama: string; nidn?: string | null } | null;
   status: boolean;
   created_at?: string;
   updated_at?: string;

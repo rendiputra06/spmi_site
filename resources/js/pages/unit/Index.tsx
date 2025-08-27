@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
-import { router, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import { Search, RefreshCw } from 'lucide-react';
 import React, { useState } from 'react';
 import { Option, Unit, UnitFormData } from './types';
@@ -15,8 +15,14 @@ interface UnitIndexProps {
     per_page: number;
     total: number;
     last_page: number;
+    links: { url: string | null; label: string; active: boolean }[];
   };
-  search?: string;
+  filters: {
+    search: string;
+    tipe: string;
+    parent_id: number | '';
+    per_page: number;
+  };
   status?: string;
   error?: string;
   parent_options: Option[];
@@ -25,8 +31,11 @@ interface UnitIndexProps {
 
 type ModalType = 'add' | 'edit' | 'delete' | null;
 
-export default function UnitIndex({ units, search, status, parent_options, leader_options }: UnitIndexProps) {
-  const [query, setQuery] = useState(search || '');
+export default function UnitIndex({ units, filters, status, parent_options, leader_options }: UnitIndexProps) {
+  const [query, setQuery] = useState<string>(filters?.search ?? '');
+  const [tipeFilter, setTipeFilter] = useState<string>(filters?.tipe ?? '');
+  const [parentFilter, setParentFilter] = useState<string | number>(filters?.parent_id === '' ? '' : String(filters?.parent_id ?? ''));
+  const [perPage, setPerPage] = useState<string>(String(filters?.per_page ?? 10));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [recentlySuccessful, setRecentlySuccessful] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
@@ -45,33 +54,35 @@ export default function UnitIndex({ units, search, status, parent_options, leade
     status: true,
   });
 
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (query !== search) {
-      router.get(
-        '/units',
-        { search: query },
-        {
-          preserveState: true,
-          preserveScroll: true,
-        }
-      );
-    }
+  const buildParams = (overrides: Record<string, any> = {}) => {
+    const params: Record<string, any> = {};
+    const s = overrides.search !== undefined ? overrides.search : query;
+    const t = overrides.tipe !== undefined ? overrides.tipe : tipeFilter;
+    const p = overrides.parent_id !== undefined ? overrides.parent_id : parentFilter;
+    const pp = overrides.per_page !== undefined ? overrides.per_page : perPage;
+    if (s) params.search = s;
+    if (t) params.tipe = t;
+    if (p) params.parent_id = p;
+    if (pp) params.per_page = pp;
+    return params;
   };
+
+  // Debounce search to mimic Users page pattern
+  React.useEffect(() => {
+    const t = setTimeout(() => {
+      router.get('/units', buildParams(), { preserveState: true, replace: true, preserveScroll: true });
+    }, 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const handleResetSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     setQuery('');
-    if (search) {
-      router.get(
-        '/units',
-        {},
-        {
-          preserveState: true,
-          preserveScroll: true,
-        }
-      );
-    }
+    setTipeFilter('');
+    setParentFilter('');
+    setPerPage('10');
+    router.get('/units', { per_page: 10 }, { preserveState: true, preserveScroll: true, replace: true });
   };
 
   const openAddModal = () => {
@@ -116,13 +127,19 @@ export default function UnitIndex({ units, search, status, parent_options, leade
     });
   };
 
-  const goToPage = (page: number) => {
-    if (page < 1 || page > units.last_page || page === units.current_page) return;
-    router.get(
-      '/units',
-      { page, ...(query ? { search: query } : {}) },
-      { preserveState: true, preserveScroll: true, replace: true }
-    );
+  const onChangeTipe = (value: string) => {
+    setTipeFilter(value);
+    router.get('/units', buildParams({ tipe: value }), { preserveState: true, replace: true, preserveScroll: true });
+  };
+
+  const onChangeParent = (value: string) => {
+    setParentFilter(value);
+    router.get('/units', buildParams({ parent_id: value }), { preserveState: true, replace: true, preserveScroll: true });
+  };
+
+  const onChangePerPage = (value: string) => {
+    setPerPage(value);
+    router.get('/units', buildParams({ per_page: value }), { preserveState: true, replace: true, preserveScroll: true });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -179,7 +196,7 @@ export default function UnitIndex({ units, search, status, parent_options, leade
 
         <div className="bg-background rounded-lg border p-4">
           <form onSubmit={(e) => e.preventDefault()} className="mb-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+            <div className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
@@ -188,15 +205,57 @@ export default function UnitIndex({ units, search, status, parent_options, leade
                   className="w-full pl-9"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      router.get('/units', buildParams(), { preserveState: true, replace: true, preserveScroll: true });
+                    }
+                    if (e.key === 'Escape') handleResetSearch();
+                  }}
                 />
               </div>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSearch} disabled={processing}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Cari
-                </Button>
-                <Button variant="outline" onClick={handleResetSearch} disabled={!query && !search}>
+              <div className="md:col-span-3">
+                <select
+                  className="border rounded h-9 px-3 w-full"
+                  value={tipeFilter}
+                  onChange={(e) => onChangeTipe(e.target.value)}
+                >
+                  <option value="">Semua Tipe</option>
+                  <option value="universitas">Universitas</option>
+                  <option value="fakultas">Fakultas</option>
+                  <option value="prodi">Program Studi</option>
+                  <option value="unit">Unit</option>
+                </select>
+              </div>
+              <div className="md:col-span-3">
+                <select
+                  className="border rounded h-9 px-3 w-full"
+                  value={parentFilter}
+                  onChange={(e) => onChangeParent(e.target.value)}
+                >
+                  <option value="">Semua Parent</option>
+                  {parent_options.map((opt) => (
+                    <option key={opt.id} value={opt.id}>
+                      {opt.nama} {opt.tipe ? `(${opt.tipe})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="md:col-span-2">
+                <select
+                  className="border rounded h-9 px-3 w-full"
+                  value={perPage}
+                  onChange={(e) => onChangePerPage(e.target.value)}
+                >
+                  {[10, 25, 50, 100].map((n) => (
+                    <option key={n} value={String(n)}>
+                      {n} / halaman
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2 md:col-span-1 md:justify-end">
+                <Button variant="outline" onClick={handleResetSearch}>
                   Reset
                 </Button>
               </div>
@@ -234,27 +293,30 @@ export default function UnitIndex({ units, search, status, parent_options, leade
             </div>
           )}
 
-          {/* Pagination */}
-          <div className="mt-6 flex items-center justify-between">
-            <div className="text-sm text-muted-foreground">
-              Halaman {units.current_page} dari {units.last_page} • Total {units.total} data
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => goToPage(units.current_page - 1)}
-                disabled={units.current_page <= 1}
-              >
-                Sebelumnya
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => goToPage(units.current_page + 1)}
-                disabled={units.current_page >= units.last_page}
-              >
-                Berikutnya
-              </Button>
-            </div>
+          {/* Pagination (follow Users pattern) */}
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {units.links?.map((link, idx) => {
+              const label = link.label.replace(/&laquo;|&raquo;/g, (m) => (m === '&laquo;' ? '«' : '»'));
+              if (link.url === null) {
+                return (
+                  <span
+                    key={idx}
+                    className="px-3 py-1.5 text-sm rounded border bg-muted text-muted-foreground"
+                    dangerouslySetInnerHTML={{ __html: label }}
+                  />
+                );
+              }
+              return (
+                <Link
+                  key={idx}
+                  href={link.url}
+                  preserveScroll
+                  preserveState
+                  className={`px-3 py-1.5 text-sm rounded border ${link.active ? 'bg-primary text-primary-foreground border-primary' : 'hover:bg-muted'}`}
+                  dangerouslySetInnerHTML={{ __html: label }}
+                />
+              );
+            })}
           </div>
         </div>
 

@@ -44,8 +44,31 @@ class AuditeeSubmissionReviewController extends Controller
                 });
         }
 
-        // Load submissions for this session limited to assigned units (or all if allowed)
-        $query = AuditeeSubmission::with([
+        // Load all pertanyaan in scope of this session's standars
+        $standarIds = $session->standars()->pluck('standar_id');
+        $indikatorIds = \App\Models\Indikator::whereIn('standar_id', $standarIds)->pluck('id');
+        $pertanyaans = \App\Models\Pertanyaan::whereIn('indikator_id', $indikatorIds)
+            ->select('id', 'isi', 'indikator_id')
+            ->orderBy('indikator_id')
+            ->orderBy('id')
+            ->get();
+
+        // Preload indikator and standars to avoid N+1 when creating placeholders
+        $indikatorsMap = \App\Models\Indikator::whereIn('id', $indikatorIds)
+            ->get(['id', 'nama', 'standar_id'])
+            ->keyBy('id');
+        $standarIdsFromInd = $indikatorsMap->pluck('standar_id')->unique()->filter();
+        $standarsMap = \App\Models\StandarMutu::whereIn('id', $standarIdsFromInd)
+            ->get(['id', 'nama'])
+            ->keyBy('id');
+
+        // Determine units to include: assigned units for auditor; if admin, include all units in session
+        $targetUnitIds = $canManageAll
+            ? \App\Models\AuditSessionUnit::where('audit_session_id', $sessionId)->pluck('unit_id')
+            : $assignedUnitIds;
+
+        // Fetch existing submissions for these units
+        $existingSubs = AuditeeSubmission::with([
                 'standar:id,nama',
                 'indikator:id,nama',
                 'pertanyaan:id,isi',
@@ -53,48 +76,73 @@ class AuditeeSubmissionReviewController extends Controller
                 'auditorReview',
             ])
             ->where('audit_session_id', $sessionId)
-            ->orderBy('standar_mutu_id')
-            ->orderBy('indikator_id')
-            ->orderBy('pertanyaan_id');
-
-        if (!$canManageAll) {
-            if ($assignedUnitIds->count() > 0) {
-                $query->whereIn('unit_id', $assignedUnitIds);
-            } else {
+            ->when($targetUnitIds->count() > 0, function ($q) use ($targetUnitIds) { $q->whereIn('unit_id', $targetUnitIds); }, function ($q) {
                 // No assignments for this auditor -> no results
-                $query->whereRaw('1=0');
+                $q->whereRaw('1=0');
+            })
+            ->get();
+
+        // Index existing submissions by key "unit_id:pertanyaan_id"
+        $existingByKey = $existingSubs->keyBy(function ($s) {
+            return $s->unit_id . ':' . $s->pertanyaan_id;
+        });
+
+        // Build a complete list across units x pertanyaan
+        $submissions = collect();
+        foreach ($targetUnitIds as $unitId) {
+            foreach ($pertanyaans as $p) {
+                $key = $unitId . ':' . $p->id;
+                if ($existingByKey->has($key)) {
+                    $s = $existingByKey->get($key);
+                    $submissions->push([
+                        'unit_id' => $s->unit_id,
+                        'id' => $s->id,
+                        'standar' => $s->standar ? ['id' => $s->standar->id, 'nama' => $s->standar->nama] : null,
+                        'indikator' => $s->indikator ? ['id' => $s->indikator->id, 'nama' => $s->indikator->nama] : null,
+                        'pertanyaan' => $s->pertanyaan ? ['id' => $s->pertanyaan->id, 'isi' => $s->pertanyaan->isi] : ['id' => $p->id, 'isi' => $p->isi],
+                        'answer_comment' => $s->answer_comment,
+                        'documents' => $s->documents->map(function ($d) {
+                            return [
+                                'id' => $d->id,
+                                'title' => $d->title,
+                                'mime' => $d->mime,
+                                'size' => $d->size,
+                                'download_url' => route('documents.download', ['document' => $d->id], false),
+                            ];
+                        })->values(),
+                        'review' => $s->auditorReview ? [
+                            'score' => $s->auditorReview->score,
+                            'reviewer_note' => $s->auditorReview->reviewer_note,
+                            'outcome_status' => $s->auditorReview->outcome_status,
+                            'special_note' => $s->auditorReview->special_note,
+                            'is_submitted' => $s->auditorReview->is_submitted,
+                            'submitted_at' => optional($s->auditorReview->submitted_at)->toIso8601String(),
+                        ] : null,
+                    ]);
+                } else {
+                    // Placeholder when submission not yet created by auditee
+                    $indikator = $indikatorsMap->get($p->indikator_id);
+                    $standar = $indikator ? $standarsMap->get($indikator->standar_id) : null;
+                    $submissions->push([
+                        'unit_id' => $unitId,
+                        'id' => null,
+                        'standar' => $standar ? ['id' => $standar->id, 'nama' => $standar->nama] : null,
+                        'indikator' => $indikator ? ['id' => $indikator->id, 'nama' => $indikator->nama] : null,
+                        'pertanyaan' => ['id' => $p->id, 'isi' => $p->isi],
+                        'answer_comment' => null,
+                        'documents' => [],
+                        'review' => null,
+                    ]);
+                }
             }
         }
 
-        $submissions = $query->get()
-            ->map(function ($s) {
-                return [
-                    'unit_id' => $s->unit_id,
-                    'id' => $s->id,
-                    'standar' => $s->standar ? ['id' => $s->standar->id, 'nama' => $s->standar->nama] : null,
-                    'indikator' => $s->indikator ? ['id' => $s->indikator->id, 'nama' => $s->indikator->nama] : null,
-                    'pertanyaan' => $s->pertanyaan ? ['id' => $s->pertanyaan->id, 'isi' => $s->pertanyaan->isi] : null,
-                    // expose auditee narrative for auditor view
-                    'answer_comment' => $s->answer_comment,
-                    'documents' => $s->documents->map(function ($d) {
-                        return [
-                            'id' => $d->id,
-                            'title' => $d->title,
-                            'mime' => $d->mime,
-                            'size' => $d->size,
-                            'download_url' => route('documents.download', ['document' => $d->id], false),
-                        ];
-                    }),
-                    'review' => $s->auditorReview ? [
-                        'score' => $s->auditorReview->score,
-                        'reviewer_note' => $s->auditorReview->reviewer_note,
-                        'outcome_status' => $s->auditorReview->outcome_status,
-                        'special_note' => $s->auditorReview->special_note,
-                        'is_submitted' => $s->auditorReview->is_submitted,
-                        'submitted_at' => optional($s->auditorReview->submitted_at)->toIso8601String(),
-                    ] : null,
-                ];
-            });
+        // Sort by standar -> indikator -> pertanyaan for consistent display
+        $submissions = $submissions->sortBy([
+            ['standar.id', 'asc'],
+            ['indikator.id', 'asc'],
+            ['pertanyaan.id', 'asc'],
+        ])->values();
 
         return Inertia::render('audit-internal/AuditeeReviewIndex', [
             'session' => $session,

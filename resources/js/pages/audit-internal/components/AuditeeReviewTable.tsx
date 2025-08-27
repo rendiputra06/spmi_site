@@ -1,7 +1,9 @@
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import React, { useMemo, useState } from 'react';
 import DocsPreviewModal from './DocsPreviewModal';
+import DocsListModal, { DocItem as ListDocItem } from './DocsListModal';
 
 export interface DocItem {
   id: number;
@@ -12,7 +14,7 @@ export interface DocItem {
 }
 
 export interface SubmissionRow {
-  id: number;
+  id: number | null;
   unit_id: number;
   standar: { id: number; nama: string } | null;
   indikator: { id: number; nama: string } | null;
@@ -57,24 +59,30 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
   const openPreview = (doc: DocItem) => { setPreviewDoc(doc); setPreviewOpen(true); };
   const closePreview = () => { setPreviewOpen(false); setPreviewDoc(null); };
 
+  // List modal state
+  const [listOpen, setListOpen] = useState(false);
+  const [listDocs, setListDocs] = useState<ListDocItem[]>([]);
+  const openList = (docs: DocItem[]) => { setListDocs(docs as unknown as ListDocItem[]); setListOpen(true); };
+  const closeList = () => setListOpen(false);
+
   // Review modal state (moves all inputs into a single modal)
   const [reviewModal, setReviewModal] = useState<{ open: boolean; row?: SubmissionRow }>({ open: false });
   const openReview = (row: SubmissionRow) => setReviewModal({ open: true, row });
   const closeReview = () => setReviewModal({ open: false });
   const setScore = (val: '0' | '1' | '2') => {
-    if (!reviewModal.row) return;
-    onChange(reviewModal.row.id, 'score', val);
+    if (!reviewModal.row || reviewModal.row.id === null) return;
+    onChange(reviewModal.row.id as number, 'score', val);
   };
   const onChangeField = (field: 'reviewer_note' | 'outcome_status' | 'special_note', value: string) => {
-    if (!reviewModal.row) return;
-    onChange(reviewModal.row.id, field, value);
+    if (!reviewModal.row || reviewModal.row.id === null) return;
+    onChange(reviewModal.row.id as number, field, value);
   };
   const clearReview = () => {
-    if (!reviewModal.row) return;
-    onChange(reviewModal.row.id, 'score', '');
-    onChange(reviewModal.row.id, 'outcome_status', '');
-    onChange(reviewModal.row.id, 'reviewer_note', '');
-    onChange(reviewModal.row.id, 'special_note', '');
+    if (!reviewModal.row || reviewModal.row.id === null) return;
+    onChange(reviewModal.row.id as number, 'score', '');
+    onChange(reviewModal.row.id as number, 'outcome_status', '');
+    onChange(reviewModal.row.id as number, 'reviewer_note', '');
+    onChange(reviewModal.row.id as number, 'special_note', '');
   };
 
   return (
@@ -106,24 +114,17 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
                       </td>
                     </tr>
                     {iVal.rows.map((r) => (
-                      <tr key={`q-${r.id}`} className="align-top">
+                      <tr key={`q-${r.pertanyaan?.id ?? 'null'}-${r.unit_id}`} className="align-top">
                         <td className="px-3 py-2 pl-10">- {r.pertanyaan?.isi}</td>
                         <td className="px-3 py-2">
-                          <div className="flex flex-col gap-1">
-                            {r.documents?.length ? (
-                              r.documents.map((d) => (
-                                <button
-                                  key={d.id}
-                                  className="text-left text-xs text-blue-600 underline hover:text-blue-700"
-                                  onClick={() => openPreview(d)}
-                                >
-                                  {d.title}
-                                </button>
-                              ))
-                            ) : (
-                              <span className="text-muted-foreground">Tidak ada dokumen</span>
-                            )}
-                          </div>
+                          {r.documents?.length ? (
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline">{r.documents.length} dokumen</Badge>
+                              <Button size="sm" variant="ghost" onClick={() => openList(r.documents)}>Lihat</Button>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Tidak ada dokumen</span>
+                          )}
                         </td>
                         <td className="px-3 py-2">
                           <div className="text-sm whitespace-pre-wrap">
@@ -139,7 +140,7 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
                         </td>
                         <td className="px-3 py-2">
                           <div className="flex flex-col gap-2">
-                            <Button size="sm" variant="outline" onClick={() => openReview(r)} disabled={isUnitSubmitted}>
+                            <Button size="sm" variant="outline" onClick={() => r.id !== null && openReview(r)} disabled={isUnitSubmitted || r.id === null}>
                               Review
                             </Button>
                           </div>
@@ -153,7 +154,8 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
           </tbody>
         </table>
       </div>
-      {/* Preview Modal */}
+      {/* List & Preview Modals */}
+      <DocsListModal open={listOpen} docs={listDocs} onClose={closeList} onPreview={(d) => openPreview(d as unknown as DocItem)} />
       <DocsPreviewModal open={previewOpen} onClose={closePreview} doc={previewDoc} />
       {/* Review Modal */}
       {reviewModal.open && reviewModal.row && (
@@ -178,7 +180,7 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
                         type="radio"
                         name="score-pick"
                         value={opt.val}
-                        checked={(draft[reviewModal.row!.id]?.score ?? '') === opt.val}
+                        checked={(reviewModal.row?.id !== null ? (draft[reviewModal.row!.id!]?.score ?? '') : '') === opt.val}
                         onChange={() => setScore(opt.val as '0' | '1' | '2')}
                         disabled={isUnitSubmitted}
                       />
@@ -199,9 +201,9 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
                     <label key={opt.val} className="inline-flex items-center gap-2">
                       <input
                         type="radio"
-                        name={`status-${reviewModal.row!.id}`}
+                        name={`status-${reviewModal.row?.id ?? 'none'}`}
                         value={opt.val}
-                        checked={draft[reviewModal.row!.id]?.outcome_status === opt.val}
+                        checked={reviewModal.row?.id !== null ? (draft[reviewModal.row!.id as number]?.outcome_status === opt.val) : false}
                         onChange={(e) => onChangeField('outcome_status', e.target.value)}
                         disabled={isUnitSubmitted}
                       />
@@ -213,7 +215,7 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
               <div>
                 <div className="text-sm font-medium mb-1">Hasil Observasi</div>
                 <Textarea
-                  value={draft[reviewModal.row.id]?.reviewer_note ?? ''}
+                  value={reviewModal.row.id !== null ? (draft[reviewModal.row.id]?.reviewer_note ?? '') : ''}
                   onChange={(e) => onChangeField('reviewer_note', e.target.value)}
                   placeholder="Hasil Observasi"
                   rows={3}
@@ -223,7 +225,7 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
               <div>
                 <div className="text-sm font-medium mb-1">Catatan Khusus</div>
                 <Textarea
-                  value={draft[reviewModal.row.id]?.special_note ?? ''}
+                  value={reviewModal.row.id !== null ? (draft[reviewModal.row.id]?.special_note ?? '') : ''}
                   onChange={(e) => onChangeField('special_note', e.target.value)}
                   placeholder="Catatan Khusus"
                   rows={3}
@@ -237,8 +239,8 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={closeReview}>Batal</Button>
-                <Button onClick={() => { onSaveRow(reviewModal.row!.id); closeReview(); }} disabled={!!saving[reviewModal.row!.id] || isUnitSubmitted}>
-                  {saving[reviewModal.row!.id] ? 'Menyimpan...' : 'Simpan'}
+                <Button onClick={() => { if (reviewModal.row?.id !== null) { onSaveRow(reviewModal.row!.id as number); closeReview(); } }} disabled={reviewModal.row?.id === null || !!saving[reviewModal.row?.id as number] || isUnitSubmitted}>
+                  {reviewModal.row?.id !== null && saving[reviewModal.row!.id as number] ? 'Menyimpan...' : 'Simpan'}
                 </Button>
               </div>
             </div>
@@ -250,6 +252,19 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
 }
 
 function renderStatusBadge(r: SubmissionRow, draft: Props['draft']) {
+  const pill = (text: string, color: string) => (
+    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{text}</span>
+  );
+
+  // Placeholder row: no submission yet
+  if (r.id === null) {
+    return (
+      <div className="flex flex-col gap-1">
+        {pill('Belum Ada Jawaban', 'bg-gray-100 text-gray-700')}
+      </div>
+    );
+  }
+
   const savedScore = r.review?.score !== undefined && r.review?.score !== null && String(r.review?.score) !== '';
   const savedStatus = !!r.review?.outcome_status && r.review?.outcome_status !== '';
   const draftScore = (draft[r.id]?.score ?? '') !== '';
@@ -261,10 +276,6 @@ function renderStatusBadge(r: SubmissionRow, draft: Props['draft']) {
     || (draft[r.id]?.outcome_status ?? '') !== (r.review?.outcome_status ?? '')
     || (draft[r.id]?.reviewer_note ?? '') !== (r.review?.reviewer_note ?? '')
     || (draft[r.id]?.special_note ?? '') !== (r.review?.special_note ?? '');
-
-  const pill = (text: string, color: string) => (
-    <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${color}`}>{text}</span>
-  );
 
   return (
     <div className="flex flex-col gap-1">

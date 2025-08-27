@@ -12,6 +12,8 @@ type Props = {
 
 export function UnitCard({ item, index, currentPage, perPage, onEdit, onDelete }: Props) {
   const number = (currentPage - 1) * perPage + (index + 1);
+  const leaderName = item.leader_dosen?.nama || item.leader_nama || '-';
+  const leaderExtra = item.leader_dosen?.nidn ? ` (${item.leader_dosen.nidn})` : '';
   return (
     <div className="flex items-start justify-between rounded-lg border p-4">
       <div className="space-y-1">
@@ -27,7 +29,7 @@ export function UnitCard({ item, index, currentPage, perPage, onEdit, onDelete }
         </div>
         <p className="text-sm text-muted-foreground">Kode: {item.kode} • Parent: {item.parent ? `${item.parent.nama} (${item.parent.tipe})` : '-'}</p>
         <p className="text-sm text-muted-foreground">
-          Pimpinan: {item.leader_nama || '-'} {item.leader_jabatan ? `• Jabatan: ${item.leader_jabatan}` : ''}
+          Pimpinan: {leaderName}{leaderExtra} {item.leader_jabatan ? `• Jabatan: ${item.leader_jabatan}` : ''}
         </p>
       </div>
       <div className="flex gap-2">

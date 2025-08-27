@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { router } from '@inertiajs/react';
-import { StandarOption, StandarWithChildren } from '../types';
+import { StandarOption, StandarWithChildren, Pertanyaan, Indikator } from '../../types';
 import { Eye } from 'lucide-react';
 
 type Props = {
@@ -23,6 +23,19 @@ export default function StandarTab({ sessionId, allStandars, initialSelectedIds 
   const [saved, setSaved] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // simple debounce hook inside component
+  const useDebounce = <T,>(value: T, delay = 300) => {
+    const [debounced, setDebounced] = useState(value as T);
+    useEffect(() => {
+      const t = setTimeout(() => setDebounced(value), delay);
+      return () => clearTimeout(t);
+    }, [value, delay]);
+    return debounced;
+  };
+
+  const debouncedFilterLeft = useDebounce(filterLeft, 300);
+  const debouncedFilterRight = useDebounce(filterRight, 300);
+
   useEffect(() => {
     setRightIds(initialSelectedIds);
   }, [initialSelectedIds]);
@@ -37,8 +50,8 @@ export default function StandarTab({ sessionId, allStandars, initialSelectedIds 
     return allStandars.filter((s) => ids.has(s.id));
   }, [allStandars, rightIds]);
 
-  const filteredLeft = leftList.filter((s) => `${s.kode} ${s.nama}`.toLowerCase().includes(filterLeft.toLowerCase()));
-  const filteredRight = rightList.filter((s) => `${s.kode} ${s.nama}`.toLowerCase().includes(filterRight.toLowerCase()));
+  const filteredLeft = leftList.filter((s) => `${s.kode} ${s.nama}`.toLowerCase().includes(debouncedFilterLeft.toLowerCase()));
+  const filteredRight = rightList.filter((s) => `${s.kode} ${s.nama}`.toLowerCase().includes(debouncedFilterRight.toLowerCase()));
 
   const moveRight = () => {
     if (selectedLeft.length === 0) return;
@@ -75,15 +88,37 @@ export default function StandarTab({ sessionId, allStandars, initialSelectedIds 
     );
   };
 
+  // disable Save when there is no change
+  const isDirty = useMemo(() => {
+    if (rightIds.length !== initialSelectedIds.length) return true;
+    const a = new Set(rightIds);
+    for (const id of initialSelectedIds) {
+      if (!a.has(id)) return true;
+    }
+    return false;
+  }, [rightIds, initialSelectedIds]);
+
   const openModal = async (standarId: number) => {
     try {
       setLoadingModal(true);
-      const res = await fetch(`/standar-mutu/${standarId}.json`);
+      const res = await fetch(`/standar-mutu/${standarId}.json`, {
+        headers: { Accept: 'application/json' },
+        credentials: 'same-origin',
+      });
+      const ct = res.headers.get('Content-Type') || '';
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`HTTP ${res.status} ${res.statusText}${text ? `\n${text.substring(0, 300)}` : ''}`);
+      }
+      if (!ct.toLowerCase().includes('application/json')) {
+        const text = await res.text().catch(() => '');
+        throw new Error(`Unexpected content-type: ${ct || 'unknown'}${text ? `\n${text.substring(0, 300)}` : ''}`);
+      }
       const data: StandarWithChildren = await res.json();
       setModalStandar(data);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Gagal memuat detail standar');
+      alert(`Gagal memuat detail standar. ${e?.message ? `\n${e.message}` : ''}`);
     } finally {
       setLoadingModal(false);
     }
@@ -167,7 +202,7 @@ export default function StandarTab({ sessionId, allStandars, initialSelectedIds 
         <div className="rounded-md bg-red-50 p-3 text-sm text-red-700">{saveError}</div>
       )}
       <div className="flex justify-end">
-        <Button onClick={save} disabled={saving}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
+        <Button onClick={save} disabled={saving || !isDirty}>{saving ? 'Menyimpan...' : 'Simpan'}</Button>
       </div>
 
       {/* Modal detail standar */}
@@ -185,11 +220,11 @@ export default function StandarTab({ sessionId, allStandars, initialSelectedIds 
                 <div className="text-sm text-muted-foreground">Belum ada indikator</div>
               ) : (
                 <div className="space-y-4">
-                  {modalStandar.indikator.map((ind) => (
+                  {modalStandar.indikator.map((ind: Indikator) => (
                     <div key={ind.id} className="rounded border p-3">
                       <div className="mb-2 font-medium">{ind.urutan}. {ind.nama}</div>
                       <ul className="list-inside list-decimal pl-4 text-sm">
-                        {ind.pertanyaan.map((q) => (
+                        {ind.pertanyaan.map((q: Pertanyaan) => (
                           <li key={q.id}>{q.urutan}. {q.isi}</li>
                         ))}
                       </ul>

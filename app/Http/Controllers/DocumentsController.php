@@ -25,7 +25,10 @@ class DocumentsController extends Controller
 
         $query = Document::query()->with(['unit', 'uploader']);
 
-        if (!$canManageAll && $userUnitId) {
+        if (!$canManageAll && !$userUnitId) {
+            // Non-admin tanpa unit tidak boleh melihat data
+            $query->whereRaw('1 = 0');
+        } elseif (!$canManageAll && $userUnitId) {
             $query->where('unit_id', $userUnitId);
         } elseif ($unitId) {
             $query->where('unit_id', $unitId);
@@ -47,7 +50,11 @@ class DocumentsController extends Controller
         }
 
         $documents = $query->orderByDesc('created_at')->paginate(10);
-        $unitOptions = Unit::select('id', 'nama', 'tipe')->orderBy('nama')->get();
+        $unitOptions = $canManageAll
+            ? Unit::select('id', 'nama', 'tipe')->orderBy('nama')->get()
+            : ($userUnitId
+                ? Unit::select('id', 'nama', 'tipe')->where('id', $userUnitId)->get()
+                : collect());
 
         return Inertia::render('documents/Index', [
             'documents' => $documents,
@@ -73,7 +80,10 @@ class DocumentsController extends Controller
         $userUnitId = optional(optional($user)->dosen)->unit_id;
 
         $query = Document::query();
-        if (!$canManageAll && $userUnitId) {
+        if (!$canManageAll && !$userUnitId) {
+            // Non-admin tanpa unit tidak boleh melihat data
+            $query->whereRaw('1 = 0');
+        } elseif (!$canManageAll && $userUnitId) {
             $query->where('unit_id', $userUnitId);
         } elseif ($unitId) {
             $query->where('unit_id', $unitId);
@@ -138,6 +148,8 @@ class DocumentsController extends Controller
             'description' => $validated['description'] ?? null,
             'category' => $validated['category'] ?? null,
             'status' => $validated['status'] ?? 'draft',
+            // ensure NOT NULL column is satisfied on initial insert
+            'file_path' => '',
         ]);
 
         // Attach media via Spatie (singleFile collection ensures old is replaced automatically)
@@ -145,8 +157,11 @@ class DocumentsController extends Controller
             ->addMedia($request->file('file'))
             ->toMediaCollection('documents');
 
-        // Keep legacy fields in sync for existing frontend usages
-        $document->file_path = ltrim(str_replace(Storage::disk('public')->path(''), '', $media->getPath()), '/');
+        // Keep legacy fields in sync for existing frontend usages (work across disks)
+        $disk = Storage::disk($media->disk);
+        $diskRoot = $disk->path('');
+        $relativePath = ltrim(str_replace($diskRoot, '', $media->getPath()), '/');
+        $document->file_path = $relativePath;
         $document->mime = $media->mime_type;
         $document->size = $media->size;
         $document->save();
@@ -173,7 +188,10 @@ class DocumentsController extends Controller
                 ->toMediaCollection('documents');
 
             // Sync legacy fields
-            $document->file_path = ltrim(str_replace(Storage::disk('public')->path(''), '', $media->getPath()), '/');
+            $disk = Storage::disk($media->disk);
+            $diskRoot = $disk->path('');
+            $relativePath = ltrim(str_replace($diskRoot, '', $media->getPath()), '/');
+            $document->file_path = $relativePath;
             $document->mime = $media->mime_type;
             $document->size = $media->size;
         }
@@ -203,10 +221,48 @@ class DocumentsController extends Controller
     {
         // $this->authorize('view', $document);
         $media = $document->getFirstMedia('documents');
+        $inline = request()->boolean('inline');
         if ($media) {
             $ext = pathinfo($media->file_name, PATHINFO_EXTENSION);
             $filename = Str::slug($document->title) . ($ext ? ".{$ext}" : '');
-            return response()->download($media->getPath(), $filename);
+            $disk = Storage::disk($media->disk);
+            $diskRoot = $disk->path('');
+            $relativePath = ltrim(str_replace($diskRoot, '', $media->getPath()), '/');
+            if ($inline) {
+                // Inline preview
+                // For local/public drivers, use response()->file
+                if ($media->disk === 'public' || $media->disk === 'local') {
+                    return response()->file($media->getPath(), [
+                        'Content-Type' => $media->mime_type,
+                        'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                    ]);
+                }
+                // For other drivers, stream with inline headers
+                $stream = $disk->readStream($relativePath);
+                return response()->stream(function () use ($stream) {
+                    fpassthru($stream);
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }, 200, [
+                    'Content-Type' => $media->mime_type,
+                    'Content-Disposition' => 'inline; filename="' . $filename . '"',
+                ]);
+            } else {
+                // Attachment download
+                if (method_exists($disk, 'download')) {
+                    return $disk->download($relativePath, $filename);
+                }
+                $stream = $disk->readStream($relativePath);
+                return response()->streamDownload(function () use ($stream) {
+                    fpassthru($stream);
+                    if (is_resource($stream)) {
+                        fclose($stream);
+                    }
+                }, $filename, [
+                    'Content-Type' => $media->mime_type,
+                ]);
+            }
         }
         // Fallback to legacy storage if media not found
         if (!$document->file_path || !Storage::disk('public')->exists($document->file_path)) {
@@ -214,6 +270,12 @@ class DocumentsController extends Controller
         }
         $ext = pathinfo($document->file_path, PATHINFO_EXTENSION);
         $filename = Str::slug($document->title) . ($ext ? ".{$ext}" : '');
+        if ($inline) {
+            return response()->file(Storage::disk('public')->path($document->file_path), [
+                'Content-Type' => $document->mime ?? 'application/octet-stream',
+                'Content-Disposition' => 'inline; filename="' . $filename . '"',
+            ]);
+        }
         return Storage::disk('public')->download($document->file_path, $filename);
     }
 }

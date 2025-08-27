@@ -189,6 +189,9 @@ export default function DocumentsIndex({
                         category: selectedDoc.category ?? '',
                         status: (selectedDoc.status as any) ?? 'draft',
                         unit_id: selectedDoc.unit_id ?? '',
+                        file_path: selectedDoc.file_path,
+                        mime: selectedDoc.mime ?? null,
+                        size: selectedDoc.size,
                     } : null}
                     documentId={selectedDoc?.id ?? null}
                 />
@@ -204,9 +207,9 @@ export default function DocumentsIndex({
                             </div>
                             <div className="p-0" style={{ height: '80vh' }}>
                                 {previewDoc.mime?.startsWith('image/') ? (
-                                    <img src={`/storage/${previewDoc.file_path}`} alt={previewDoc.title} className="h-full w-full object-contain" />
+                                    <img src={`/documents/${previewDoc.id}/download?inline=1`} alt={previewDoc.title} className="h-full w-full object-contain" />
                                 ) : previewDoc.mime === 'application/pdf' || previewDoc.file_path.toLowerCase().endsWith('.pdf') ? (
-                                    <iframe src={`/storage/${previewDoc.file_path}`} title={previewDoc.title} className="h-full w-full" />
+                                    <iframe src={`/documents/${previewDoc.id}/download?inline=1`} title={previewDoc.title} className="h-full w-full" />
                                 ) : (
                                     <div className="text-muted-foreground p-6 text-sm">
                                         Preview tidak tersedia untuk tipe ini. Silakan unduh dokumen.
