@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { router, useForm } from '@inertiajs/react';
 import { Search, RefreshCw } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { AuditSession, AuditSessionFormData, Option, CanFlags } from './types';
 import SessionList from './components/SessionList';
 import SessionFormDialog from './components/SessionFormDialog';
@@ -25,12 +25,16 @@ type ModalType = 'add' | 'edit' | 'delete' | null;
 
 export default function AMIIndex({ sessions, search, periode_options, can }: AMIIndexProps) {
   const [query, setQuery] = useState(search || '');
+  const [periodeFilter, setPeriodeFilter] = useState<number | ''>('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [recentlySuccessful, setRecentlySuccessful] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [modalType, setModalType] = useState<ModalType>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<AuditSession | null>(null);
+  const lastRequestedRef = useRef<{ q: string; periode: number | ''; status: string }>({ q: (search || '').trim(), periode: '', status: 'all' });
+  const DEBOUNCE_MS = 400;
 
   const { data, setData, post, put, reset, errors, processing } = useForm<AuditSessionFormData>({
     kode: '',
@@ -45,18 +49,53 @@ export default function AMIIndex({ sessions, search, periode_options, can }: AMI
 
   const toYMD = (value: string) => (value && value.includes('T') ? value.split('T')[0] : value);
 
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (query !== search) {
-      router.get('/audit-internal', { search: query }, { preserveState: true, preserveScroll: true });
-    }
+  const handleSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault?.();
+    const q = (query || '').trim();
+    const current = lastRequestedRef.current;
+    const params: Record<string, any> = {};
+    if (q) params.search = q;
+    if (periodeFilter) params.periode_id = periodeFilter;
+    if (statusFilter && statusFilter !== 'all') params.status = statusFilter; // expects backend to support
+    // avoid duplicate request
+    if (q === current.q && periodeFilter === current.periode && statusFilter === current.status) return;
+    router.get('/audit-internal', params, { preserveState: true, preserveScroll: true });
+    lastRequestedRef.current = { q, periode: periodeFilter, status: statusFilter };
   };
 
-  const handleResetSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const handleResetSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault?.();
     setQuery('');
-    if (search) router.get('/audit-internal', {}, { preserveState: true, preserveScroll: true });
+    setPeriodeFilter('');
+    setStatusFilter('all');
+    router.get('/audit-internal', {}, { preserveState: true, preserveScroll: true });
+    lastRequestedRef.current = { q: '', periode: '', status: 'all' };
   };
+
+  // Debounced auto-search on query change
+  useEffect(() => {
+    const q = (query || '').trim();
+    const st = statusFilter;
+    const pr = periodeFilter;
+    const timer = window.setTimeout(() => {
+      const current = lastRequestedRef.current;
+      const params: Record<string, any> = {};
+      if (q) params.search = q;
+      if (pr) params.periode_id = pr;
+      if (st && st !== 'all') params.status = st;
+      // skip if same as last
+      if (q === current.q && pr === current.periode && st === current.status) return;
+      // decide whether to reset or query
+      if (Object.keys(params).length > 0) {
+        router.get('/audit-internal', params, { preserveState: true, preserveScroll: true });
+      } else {
+        router.get('/audit-internal', {}, { preserveState: true, preserveScroll: true });
+      }
+      lastRequestedRef.current = { q, periode: pr, status: st };
+    }, DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, periodeFilter, statusFilter]);
 
   const openAddModal = () => {
     reset();
@@ -106,7 +145,12 @@ export default function AMIIndex({ sessions, search, periode_options, can }: AMI
 
   const goToPage = (page: number) => {
     if (page < 1 || page > sessions.last_page || page === sessions.current_page) return;
-    router.get('/audit-internal', { page, ...(query ? { search: query } : {}) }, { preserveState: true, preserveScroll: true, replace: true });
+    const params: Record<string, any> = { page };
+    const q = (query || '').trim();
+    if (q) params.search = q;
+    if (periodeFilter) params.periode_id = periodeFilter;
+    if (statusFilter && statusFilter !== 'all') params.status = statusFilter;
+    router.get('/audit-internal', params, { preserveState: true, preserveScroll: true, replace: true });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -151,7 +195,7 @@ export default function AMIIndex({ sessions, search, periode_options, can }: AMI
 
         <div className="bg-background rounded-lg border p-4">
           {/* Search */}
-          <form onSubmit={(e) => e.preventDefault()} className="mb-6">
+          <form onSubmit={handleSearch} className="mb-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -161,15 +205,35 @@ export default function AMIIndex({ sessions, search, periode_options, can }: AMI
                   className="w-full pl-9"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') return handleSearch(e);
+                    if (e.key === 'Escape') return handleResetSearch(e);
+                  }}
                 />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSearch} disabled={processing}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Cari
-                </Button>
-                <Button variant="outline" onClick={handleResetSearch} disabled={!query && !search}>
+                <select
+                  value={periodeFilter}
+                  onChange={(e) => setPeriodeFilter(e.target.value ? Number(e.target.value) : '')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e); }}
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                  <option value="">Semua Periode</option>
+                  {periode_options?.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.nama}</option>
+                  ))}
+                </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value as 'all' | 'active' | 'inactive')}
+                  onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e); }}
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                >
+                  <option value="all">Semua Status</option>
+                  <option value="active">Aktif</option>
+                  <option value="inactive">Nonaktif</option>
+                </select>
+                <Button variant="outline" onClick={handleResetSearch} disabled={!query && !search && !periodeFilter && statusFilter === 'all'}>
                   Reset
                 </Button>
               </div>

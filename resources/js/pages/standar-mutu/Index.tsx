@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { router, useForm } from '@inertiajs/react';
 import { Search, RefreshCw } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StandarMutuCard } from './components/StandarMutuCard';
 import { StandarMutuForm } from './components/StandarMutuForm';
 import { StandarMutu, ModalType, StandarMutuIndexProps, StandarMutuFormData } from './types';
@@ -16,6 +16,9 @@ export default function StandarMutuIndex({ standar, search, status, error, filte
     const [editId, setEditId] = useState<number | null>(null);
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [modalType, setModalType] = useState<ModalType>(null);
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const lastRequestedRef = useRef<{ q: string; status: string }>({ q: (search || '').trim(), status: filterStatus || 'all' });
+    const DEBOUNCE_MS = 400;
 
     const { data, setData, post, put, reset, errors, processing } = useForm<StandarMutuFormData>({
         kode: '',
@@ -24,22 +27,26 @@ export default function StandarMutuIndex({ standar, search, status, error, filte
         status: true,
     });
 
-    const handleSearch = (e?: React.FormEvent) => {
-        e?.preventDefault();
-        if (query !== search || (filterStatus || 'all') !== statusFilter) {
+    const handleSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+        e?.preventDefault?.();
+        const q = (query || '').trim();
+        // Avoid duplicate request if already requested with same params
+        if (q === lastRequestedRef.current.q && statusFilter === lastRequestedRef.current.status) return;
+        if (q !== (search || '') || (filterStatus || 'all') !== statusFilter) {
             router.get(
                 '/standar-mutu',
-                { search: query, status: statusFilter },
+                { search: q, status: statusFilter },
                 {
                     preserveState: true,
                     preserveScroll: true,
                 }
             );
+            lastRequestedRef.current = { q, status: statusFilter };
         }
     };
 
-    const handleResetSearch = (e?: React.FormEvent) => {
-        e?.preventDefault();
+    const handleResetSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+        e?.preventDefault?.();
         setQuery('');
         setStatusFilter('all');
         if (search || (filterStatus && filterStatus !== 'all')) {
@@ -52,7 +59,57 @@ export default function StandarMutuIndex({ standar, search, status, error, filte
                 }
             );
         }
+        // re-focus search input after reset
+        setTimeout(() => searchInputRef.current?.focus(), 0);
     };
+
+    // Global shortcuts: Ctrl/Cmd+K or '/' to focus search; Escape to reset when focused
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            const isInputTarget = (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA';
+            // Ctrl/Cmd+K focuses search
+            if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey))) {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+                return;
+            }
+            // '/' focuses search when not already typing into an input
+            if (e.key === '/' && !isInputTarget) {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+                return;
+            }
+            // Escape clears query if search is focused
+            if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+                e.preventDefault();
+                handleResetSearch();
+                return;
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [search, filterStatus]);
+
+    // Debounced auto-search on query/status change
+    useEffect(() => {
+        const q = (query || '').trim();
+        const st = statusFilter;
+        const timer = window.setTimeout(() => {
+            // Skip if same as last requested
+            if (q === lastRequestedRef.current.q && st === lastRequestedRef.current.status) return;
+            // Only dispatch when differs from initial props or last requested
+            if (q !== (search || '') || (filterStatus || 'all') !== st) {
+                router.get(
+                    '/standar-mutu',
+                    { search: q, status: st },
+                    { preserveState: true, preserveScroll: true },
+                );
+                lastRequestedRef.current = { q, status: st };
+            }
+        }, DEBOUNCE_MS);
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query, statusFilter]);
 
     const openAddModal = () => {
         reset();
@@ -143,7 +200,7 @@ export default function StandarMutuIndex({ standar, search, status, error, filte
                 </div>
 
                 <div className="bg-background rounded-lg border p-4">
-                    <form onSubmit={(e) => e.preventDefault()} className="mb-6">
+                    <form onSubmit={handleSearch} className="mb-6">
                         <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                             <div className="relative flex-1">
                                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -153,27 +210,26 @@ export default function StandarMutuIndex({ standar, search, status, error, filte
                                     className="w-full pl-9"
                                     value={query}
                                     onChange={(e) => setQuery(e.target.value)}
-                                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') return handleSearch(e);
+                                        if (e.key === 'Escape') return handleResetSearch(e);
+                                    }}
+                                    ref={searchInputRef}
                                 />
                             </div>
                             <div className="flex gap-2">
                                 <select
                                     value={statusFilter}
                                     onChange={(e) => setStatusFilter(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') return handleSearch(e);
+                                    }}
                                     className="h-9 rounded-md border bg-background px-3 text-sm"
                                 >
                                     <option value="all">Semua Status</option>
                                     <option value="active">Aktif</option>
                                     <option value="inactive">Nonaktif</option>
                                 </select>
-                                <Button 
-                                    variant="outline" 
-                                    onClick={handleSearch}
-                                    disabled={processing}
-                                >
-                                    <Search className="mr-2 h-4 w-4" />
-                                    Cari
-                                </Button>
                                 <Button 
                                     variant="outline" 
                                     onClick={handleResetSearch}

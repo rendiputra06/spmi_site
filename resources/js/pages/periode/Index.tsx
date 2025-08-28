@@ -2,8 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { router, useForm } from '@inertiajs/react';
-import { Search, RefreshCw } from 'lucide-react';
-import React, { useState } from 'react';
+import { Loader2, Search, RefreshCw } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Periode, PeriodeFormData } from './types';
 import { PeriodeForm } from './components/PeriodeForm';
 import { PeriodeCard } from './components/PeriodeCard';
@@ -31,6 +31,10 @@ export default function PeriodeIndex({ periodes, search, status }: PeriodeIndexP
   const [modalType, setModalType] = useState<ModalType>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<Periode | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const lastRequestedRef = useRef<{ q: string }>({ q: (search || '').trim() });
+  const DEBOUNCE_MS = 400;
 
   const { data, setData, post, put, reset, errors, processing } = useForm<PeriodeFormData>({
     kode: '',
@@ -47,23 +51,33 @@ export default function PeriodeIndex({ periodes, search, status }: PeriodeIndexP
     return value.includes('T') ? value.split('T')[0] : value;
   };
 
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (query !== search) {
-      router.get(
-        '/periodes',
-        { search: query },
-        { preserveState: true, preserveScroll: true }
-      );
-    }
+  const handleSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault?.();
+    const q = (query || '').trim();
+    const current = lastRequestedRef.current;
+    const params: Record<string, any> = {};
+    if (q) params.search = q;
+    if (q === current.q) return;
+    router.get('/periodes', params, {
+      preserveState: true,
+      preserveScroll: true,
+      onStart: () => setIsLoading(true),
+      onFinish: () => setIsLoading(false),
+    });
+    lastRequestedRef.current = { q };
   };
 
-  const handleResetSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const handleResetSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault?.();
     setQuery('');
-    if (search) {
-      router.get('/periodes', {}, { preserveState: true, preserveScroll: true });
-    }
+    router.get('/periodes', {}, {
+      preserveState: true,
+      preserveScroll: true,
+      onStart: () => setIsLoading(true),
+      onFinish: () => setIsLoading(false),
+    });
+    lastRequestedRef.current = { q: '' };
+    setTimeout(() => searchInputRef.current?.focus(), 0);
   };
 
   const openAddModal = () => {
@@ -112,9 +126,61 @@ export default function PeriodeIndex({ periodes, search, status }: PeriodeIndexP
     router.get(
       '/periodes',
       { page, ...(query ? { search: query } : {}) },
-      { preserveState: true, preserveScroll: true, replace: true }
+      {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onStart: () => setIsLoading(true),
+        onFinish: () => setIsLoading(false),
+      }
     );
   };
+
+  // Global shortcuts and Escape handling
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInputTarget = tag === 'INPUT' || tag === 'TEXTAREA';
+      if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (e.key === '/' && !isInputTarget) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        e.preventDefault();
+        handleResetSearch();
+        return;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced search on query
+  useEffect(() => {
+    const q = (query || '').trim();
+    const timer = window.setTimeout(() => {
+      const current = lastRequestedRef.current;
+      const params: Record<string, any> = {};
+      if (q) params.search = q;
+      if (q === current.q) return;
+      router.get('/periodes', params, {
+        preserveState: true,
+        preserveScroll: true,
+        onStart: () => setIsLoading(true),
+        onFinish: () => setIsLoading(false),
+      });
+      lastRequestedRef.current = { q };
+    }, DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -147,7 +213,10 @@ export default function PeriodeIndex({ periodes, search, status }: PeriodeIndexP
     <AppLayout breadcrumbs={[{ title: 'Periode', href: '/periodes' }]} title="Periode">
       <div className="space-y-6 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Data Periode</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight">Data Periode</h2>
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -164,7 +233,7 @@ export default function PeriodeIndex({ periodes, search, status }: PeriodeIndexP
         <div className="bg-background rounded-lg border p-4">
           <form onSubmit={(e) => e.preventDefault()} className="mb-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="relative flex-1">
+              <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
@@ -172,14 +241,14 @@ export default function PeriodeIndex({ periodes, search, status }: PeriodeIndexP
                   className="w-full pl-9"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') return handleSearch(e);
+                    if (e.key === 'Escape') return handleResetSearch(e);
+                  }}
+                  ref={searchInputRef}
                 />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSearch} disabled={processing}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Cari
-                </Button>
                 <Button variant="outline" onClick={handleResetSearch} disabled={!query && !search}>
                   Reset
                 </Button>

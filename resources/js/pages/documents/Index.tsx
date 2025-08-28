@@ -2,8 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { router } from '@inertiajs/react';
-import { RefreshCw, Search, Upload } from 'lucide-react';
-import { useState } from 'react';
+import { Loader2, RefreshCw, Search, Upload } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { DocumentCard } from './components/DocumentCard';
 import { DocumentForm } from './components/DocumentForm';
 import type { DocumentItem, UnitOption } from './types';
@@ -42,6 +42,16 @@ export default function DocumentsIndex({
     const [statusFilter, setStatusFilter] = useState<string>(status || '');
     const [previewDoc, setPreviewDoc] = useState<DocumentItem | null>(null);
     const [selectedDoc, setSelectedDoc] = useState<DocumentItem | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const [unitQuery, setUnitQuery] = useState('');
+    const searchInputRef = useRef<HTMLInputElement | null>(null);
+    const lastRequestedRef = useRef<{ q: string; unit: string; category: string; status: string }>({
+        q: (search || '').trim(),
+        unit: unit_id ? String(unit_id) : '',
+        category: category || '',
+        status: status || '',
+    });
+    const DEBOUNCE_MS = 400;
 
     const goToPage = (page: number) => {
         if (page < 1 || page > documents.last_page || page === documents.current_page) return;
@@ -54,36 +64,114 @@ export default function DocumentsIndex({
                 ...(categoryFilter ? { category: categoryFilter } : {}),
                 ...(statusFilter ? { status: statusFilter } : {}),
             },
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
-    };
-
-    const handleSearch = () => {
-        router.get(
-            '/documents',
             {
-                ...(query ? { search: query } : {}),
-                ...(unitFilter ? { unit_id: unitFilter } : {}),
-                ...(categoryFilter ? { category: categoryFilter } : {}),
-                ...(statusFilter ? { status: statusFilter } : {}),
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => setIsLoading(true),
+                onFinish: () => setIsLoading(false),
             },
-            { preserveState: true, preserveScroll: true },
         );
     };
 
-    const handleReset = () => {
+    const handleSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+        e?.preventDefault?.();
+        const q = (query || '').trim();
+        const current = lastRequestedRef.current;
+        const params: Record<string, any> = {};
+        if (q) params.search = q;
+        if (unitFilter) params.unit_id = unitFilter;
+        if (categoryFilter) params.category = categoryFilter;
+        if (statusFilter) params.status = statusFilter;
+        if (q === current.q && unitFilter === current.unit && categoryFilter === current.category && statusFilter === current.status) return;
+        router.get('/documents', params, {
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+        lastRequestedRef.current = { q, unit: unitFilter, category: categoryFilter, status: statusFilter };
+    };
+
+    const handleReset = (e?: React.FormEvent | React.KeyboardEvent) => {
+        e?.preventDefault?.();
         setQuery('');
         setUnitFilter('');
         setCategoryFilter('');
         setStatusFilter('');
-        router.get('/documents', {}, { preserveState: true, preserveScroll: true });
+        router.get('/documents', {}, {
+            preserveState: true,
+            preserveScroll: true,
+            onStart: () => setIsLoading(true),
+            onFinish: () => setIsLoading(false),
+        });
+        lastRequestedRef.current = { q: '', unit: '', category: '', status: '' };
+        setTimeout(() => searchInputRef.current?.focus(), 0);
     };
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            const isInputTarget = (e.target as HTMLElement)?.tagName === 'INPUT' || (e.target as HTMLElement)?.tagName === 'TEXTAREA';
+            if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey))) {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+                return;
+            }
+            if (e.key === '/' && !isInputTarget) {
+                e.preventDefault();
+                searchInputRef.current?.focus();
+                return;
+            }
+            if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+                e.preventDefault();
+                handleReset();
+                return;
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Debounce on search & filters
+    useEffect(() => {
+        const q = (query || '').trim();
+        const unit = unitFilter;
+        const cat = categoryFilter.trim();
+        const st = statusFilter;
+        const timer = window.setTimeout(() => {
+            const current = lastRequestedRef.current;
+            const params: Record<string, any> = {};
+            if (q) params.search = q;
+            if (unit) params.unit_id = unit;
+            if (cat) params.category = cat;
+            if (st) params.status = st;
+            if (q === current.q && unit === current.unit && cat === current.category && st === current.status) return;
+            const opts = {
+                preserveState: true,
+                preserveScroll: true,
+                onStart: () => setIsLoading(true),
+                onFinish: () => setIsLoading(false),
+            } as const;
+            if (Object.keys(params).length > 0) {
+                router.get('/documents', params, opts);
+            } else {
+                router.get('/documents', {}, opts);
+            }
+            lastRequestedRef.current = { q, unit, category: cat, status: st };
+        }, DEBOUNCE_MS);
+        return () => window.clearTimeout(timer);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [query, unitFilter, categoryFilter, statusFilter]);
 
     return (
         <AppLayout title="Dokumen">
             <div className="space-y-6 p-4 md:p-6">
                 <div className="flex items-center justify-between">
-                    <h1 className="text-xl font-semibold">Manajemen Dokumen</h1>
+                    <div className="flex items-center gap-3">
+                        <h1 className="text-xl font-semibold">Manajemen Dokumen</h1>
+                        {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                    </div>
                     <div className="flex gap-2">
                         <Button onClick={() => setIsUploadOpen(true)}>
                             <Upload className="mr-2 h-4 w-4" /> Upload Dokumen
@@ -100,26 +188,57 @@ export default function DocumentsIndex({
                             className="w-full pl-9"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter') return handleSearch(e);
+                                if (e.key === 'Escape') return handleReset(e);
+                            }}
+                            ref={searchInputRef}
                         />
                     </div>
                     {can_manage_all && (
                         <div className="flex-1 sm:max-w-xs">
-                            <select className="h-9 w-full rounded border px-3" value={unitFilter} onChange={(e) => setUnitFilter(e.target.value)}>
+                            <div className="mb-2">
+                                <Input
+                                    placeholder="Cari Unit..."
+                                    value={unitQuery}
+                                    onChange={(e) => setUnitQuery(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e); if (e.key === 'Escape') return handleReset(e); }}
+                                />
+                            </div>
+                            <select
+                                className="h-9 w-full rounded border px-3"
+                                value={unitFilter}
+                                onChange={(e) => setUnitFilter(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e as any); }}
+                            >
                                 <option value="">Semua Unit</option>
-                                {unit_options.map((u) => (
-                                    <option key={u.id} value={u.id}>
-                                        {u.nama} {u.tipe ? `(${u.tipe})` : ''}
-                                    </option>
-                                ))}
+                                {unit_options
+                                    .filter((u) => {
+                                        const q = unitQuery.toLowerCase();
+                                        if (!q) return true;
+                                        return (
+                                            String(u.id).includes(q) ||
+                                            (u.nama?.toLowerCase().includes(q)) ||
+                                            (u.tipe ? u.tipe.toLowerCase().includes(q) : false)
+                                        );
+                                    })
+                                    .slice(0, 500)
+                                    .map((u) => (
+                                        <option key={u.id} value={u.id}>
+                                            {u.nama} {u.tipe ? `(${u.tipe})` : ''}
+                                        </option>
+                                    ))}
                             </select>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                                {unitQuery ? `Filter: ${unit_options.filter(u => (String(u.id).includes(unitQuery.toLowerCase()) || u.nama?.toLowerCase().includes(unitQuery.toLowerCase()) || (u.tipe ? u.tipe.toLowerCase().includes(unitQuery.toLowerCase()) : false))).length} unit` : `${unit_options.length} unit`}
+                            </div>
                         </div>
                     )}
                     <div className="flex-1 sm:max-w-xs">
-                        <Input placeholder="Kategori" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} />
+                        <Input placeholder="Kategori" value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e); if (e.key === 'Escape') return handleReset(e); }} />
                     </div>
                     <div className="flex-1 sm:max-w-xs">
-                        <select className="h-9 w-full rounded border px-3" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
+                        <select className="h-9 w-full rounded border px-3" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e as any); }}>
                             <option value="">Semua Status</option>
                             <option value="draft">Draft</option>
                             <option value="published">Published</option>
@@ -127,9 +246,6 @@ export default function DocumentsIndex({
                         </select>
                     </div>
                     <div className="flex gap-2">
-                        <Button variant="outline" onClick={handleSearch}>
-                            <Search className="mr-2 h-4 w-4" /> Cari
-                        </Button>
                         <Button
                             variant="outline"
                             onClick={handleReset}

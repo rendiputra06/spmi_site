@@ -2,8 +2,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { router, useForm } from '@inertiajs/react';
-import { Search, RefreshCw } from 'lucide-react';
-import React, { useState } from 'react';
+import { Loader2, Search, RefreshCw } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Dosen, DosenFormData } from './types';
 import { DosenForm } from './components/DosenForm';
 import { DosenCard } from './components/DosenCard';
@@ -35,6 +35,14 @@ export default function DosenIndex({ dosen, search, unit_id, status, roles = [],
   const [modalType, setModalType] = useState<ModalType>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteRow, setDeleteRow] = useState<Dosen | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [unitQuery, setUnitQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const lastRequestedRef = useRef<{ q: string; unit: string }>({
+    q: (search || '').trim(),
+    unit: unit_id ? String(unit_id) : '',
+  });
+  const DEBOUNCE_MS = 400;
 
   const { data, setData, post, put, reset, errors, processing, transform } = useForm<DosenFormData>({
     nidn: '',
@@ -51,34 +59,35 @@ export default function DosenIndex({ dosen, search, unit_id, status, roles = [],
     password: '',
   });
 
-  const handleSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (query !== search || (unitFilter || '') !== (unit_id ? String(unit_id) : '')) {
-      router.get(
-        '/dosen',
-        { search: query, ...(unitFilter ? { unit_id: unitFilter } : {}) },
-        {
-          preserveState: true,
-          preserveScroll: true,
-        }
-      );
-    }
+  const handleSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault?.();
+    const q = (query || '').trim();
+    const current = lastRequestedRef.current;
+    const params: Record<string, any> = {};
+    if (q) params.search = q;
+    if (unitFilter) params.unit_id = unitFilter;
+    if (q === current.q && unitFilter === current.unit) return;
+    router.get('/dosen', params, {
+      preserveState: true,
+      preserveScroll: true,
+      onStart: () => setIsLoading(true),
+      onFinish: () => setIsLoading(false),
+    });
+    lastRequestedRef.current = { q, unit: unitFilter };
   };
 
-  const handleResetSearch = (e?: React.FormEvent) => {
-    e?.preventDefault();
+  const handleResetSearch = (e?: React.FormEvent | React.KeyboardEvent) => {
+    e?.preventDefault?.();
     setQuery('');
     setUnitFilter('');
-    if (search || unit_id) {
-      router.get(
-        '/dosen',
-        {},
-        {
-          preserveState: true,
-          preserveScroll: true,
-        }
-      );
-    }
+    router.get('/dosen', {}, {
+      preserveState: true,
+      preserveScroll: true,
+      onStart: () => setIsLoading(true),
+      onFinish: () => setIsLoading(false),
+    });
+    lastRequestedRef.current = { q: '', unit: '' };
+    setTimeout(() => searchInputRef.current?.focus(), 0);
   };
 
   const [editingLinked, setEditingLinked] = useState<boolean>(false);
@@ -141,9 +150,63 @@ export default function DosenIndex({ dosen, search, unit_id, status, roles = [],
     router.get(
       '/dosen',
       { page, ...(query ? { search: query } : {}), ...(unitFilter ? { unit_id: unitFilter } : {}) },
-      { preserveState: true, preserveScroll: true, replace: true }
+      {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        onStart: () => setIsLoading(true),
+        onFinish: () => setIsLoading(false),
+      }
     );
   };
+
+  // Global shortcuts and Escape handling
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInputTarget = tag === 'INPUT' || tag === 'TEXTAREA';
+      if ((e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey))) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (e.key === '/' && !isInputTarget) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        return;
+      }
+      if (e.key === 'Escape' && document.activeElement === searchInputRef.current) {
+        e.preventDefault();
+        handleResetSearch();
+        return;
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Debounced search on query/unitFilter
+  useEffect(() => {
+    const q = (query || '').trim();
+    const unit = unitFilter;
+    const timer = window.setTimeout(() => {
+      const current = lastRequestedRef.current;
+      const params: Record<string, any> = {};
+      if (q) params.search = q;
+      if (unit) params.unit_id = unit;
+      if (q === current.q && unit === current.unit) return;
+      router.get('/dosen', params, {
+        preserveState: true,
+        preserveScroll: true,
+        onStart: () => setIsLoading(true),
+        onFinish: () => setIsLoading(false),
+      });
+      lastRequestedRef.current = { q, unit };
+    }, DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, unitFilter]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -189,7 +252,10 @@ export default function DosenIndex({ dosen, search, unit_id, status, roles = [],
     <AppLayout breadcrumbs={[{ title: 'Dosen', href: '/dosen' }]} title="Dosen">
       <div className="space-y-6 p-4 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h2 className="text-3xl font-bold tracking-tight">Data Dosen</h2>
+          <div className="flex items-center gap-3">
+            <h2 className="text-3xl font-bold tracking-tight">Data Dosen</h2>
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -214,28 +280,51 @@ export default function DosenIndex({ dosen, search, unit_id, status, roles = [],
                   className="w-full pl-9"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') return handleSearch(e);
+                    if (e.key === 'Escape') return handleResetSearch(e);
+                  }}
+                  ref={searchInputRef}
                 />
               </div>
               <div className="flex-1 sm:max-w-xs">
+                <div className="mb-2">
+                  <Input
+                    placeholder="Cari Unit..."
+                    value={unitQuery}
+                    onChange={(e) => setUnitQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e); if (e.key === 'Escape') return handleResetSearch(e); }}
+                  />
+                </div>
                 <select
                   className="w-full border rounded h-9 px-3"
                   value={unitFilter}
                   onChange={(e) => setUnitFilter(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') return handleSearch(e as any); }}
                 >
                   <option value="">Semua Unit</option>
-                  {unit_options.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.nama} {u.tipe ? `(${u.tipe})` : ''}
-                    </option>
-                  ))}
+                  {unit_options
+                    .filter((u) => {
+                      const q = unitQuery.toLowerCase();
+                      if (!q) return true;
+                      return (
+                        String(u.id).includes(q) ||
+                        (u.nama?.toLowerCase().includes(q)) ||
+                        (u.tipe ? u.tipe.toLowerCase().includes(q) : false)
+                      );
+                    })
+                    .slice(0, 500)
+                    .map((u) => (
+                      <option key={u.id} value={u.id}>
+                        {u.nama} {u.tipe ? `(${u.tipe})` : ''}
+                      </option>
+                    ))}
                 </select>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {unitQuery ? `Filter: ${unit_options.filter(u => (String(u.id).includes(unitQuery.toLowerCase()) || u.nama?.toLowerCase().includes(unitQuery.toLowerCase()) || (u.tipe ? u.tipe.toLowerCase().includes(unitQuery.toLowerCase()) : false))).length} unit` : `${unit_options.length} unit`}
+                </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={handleSearch} disabled={processing}>
-                  <Search className="mr-2 h-4 w-4" />
-                  Cari
-                </Button>
                 <Button
                   variant="outline"
                   onClick={handleResetSearch}

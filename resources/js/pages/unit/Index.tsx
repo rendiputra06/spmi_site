@@ -196,8 +196,8 @@ export default function UnitIndex({ units, filters, status, parent_options, lead
 
         <div className="bg-background rounded-lg border p-4">
           <form onSubmit={(e) => e.preventDefault()} className="mb-6">
-            <div className="flex flex-col gap-4 md:grid md:grid-cols-12 md:items-center">
-              <div className="relative flex-1">
+            <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="relative flex-1 min-w-[240px]">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   type="search"
@@ -214,7 +214,7 @@ export default function UnitIndex({ units, filters, status, parent_options, lead
                   }}
                 />
               </div>
-              <div className="md:col-span-3">
+              <div className="w-full sm:w-44">
                 <select
                   className="border rounded h-9 px-3 w-full"
                   value={tipeFilter}
@@ -227,7 +227,7 @@ export default function UnitIndex({ units, filters, status, parent_options, lead
                   <option value="unit">Unit</option>
                 </select>
               </div>
-              <div className="md:col-span-3">
+              <div className="w-full sm:max-w-xs">
                 <select
                   className="border rounded h-9 px-3 w-full"
                   value={parentFilter}
@@ -241,7 +241,7 @@ export default function UnitIndex({ units, filters, status, parent_options, lead
                   ))}
                 </select>
               </div>
-              <div className="md:col-span-2">
+              <div className="w-full sm:w-36">
                 <select
                   className="border rounded h-9 px-3 w-full"
                   value={perPage}
@@ -254,10 +254,8 @@ export default function UnitIndex({ units, filters, status, parent_options, lead
                   ))}
                 </select>
               </div>
-              <div className="flex gap-2 md:col-span-1 md:justify-end">
-                <Button variant="outline" onClick={handleResetSearch}>
-                  Reset
-                </Button>
+              <div className="w-full sm:w-auto sm:ml-auto flex justify-end">
+                <Button variant="outline" onClick={handleResetSearch}>Reset</Button>
               </div>
             </div>
           </form>

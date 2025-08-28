@@ -12,6 +12,9 @@ class AuditSessionController extends Controller
     public function index(Request $request)
     {
         $search = $request->input('search');
+        $periodeId = $request->input('periode_id');
+        $statusFilter = $request->input('status'); // 'active' | 'inactive' | null
+
         $query = AuditSession::query()->with('periode');
         if ($search) {
             $query->where(function($q) use ($search) {
@@ -19,6 +22,16 @@ class AuditSessionController extends Controller
                   ->orWhere('nama', 'like', "%$search%")
                   ->orWhere('deskripsi', 'like', "%$search%");
             });
+        }
+
+        if ($periodeId) {
+            $query->where('periode_id', $periodeId);
+        }
+
+        if ($statusFilter === 'active') {
+            $query->where('status', true);
+        } elseif ($statusFilter === 'inactive') {
+            $query->where('status', false);
         }
         // Role-based visibility: admin sees all; others filtered by assignments
         $user = $request->user();
@@ -53,7 +66,7 @@ class AuditSessionController extends Controller
                   ->whereDate('tanggal_selesai', '>=', now());
         }
 
-        $sessions = $query->orderByDesc('tanggal_mulai')->paginate(10);
+        $sessions = $query->orderByDesc('tanggal_mulai')->paginate(10)->withQueryString();
         $periodeOptions = Periode::orderByDesc('mulai')->get(['id','nama','mulai','selesai']);
 
         return Inertia::render('audit-internal/Index', [
