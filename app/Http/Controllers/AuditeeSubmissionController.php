@@ -8,6 +8,8 @@ use App\Models\AuditeeSubmission;
 use App\Models\Indikator;
 use App\Models\Pertanyaan;
 use App\Models\StandarMutu;
+use App\Models\Document;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
@@ -231,5 +233,58 @@ class AuditeeSubmissionController extends Controller
         $ids = $validated['document_ids'];
         $submission->documents()->detach($ids);
         return back()->with('status', 'Dokumen dihapus dari jawaban');
+    }
+
+    /**
+     * Upload a new document and attach it to the given submission.
+     */
+    public function uploadAndAttach(Request $request, $submissionId)
+    {
+        $submission = AuditeeSubmission::findOrFail($submissionId);
+
+        $user = Auth::user();
+        $canManageAll = method_exists($user, 'hasRole') && $user->hasRole('admin');
+        $userUnitId = optional(optional($user)->dosen)->unit_id;
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'category' => 'nullable|string|max:100',
+            'status' => 'nullable|in:draft,published,archived',
+            'unit_id' => 'nullable|exists:units,id',
+            'file' => 'required|file|max:51200|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,png,jpg,jpeg',
+        ]);
+
+        $unitId = $canManageAll ? ($validated['unit_id'] ?? $userUnitId) : $userUnitId;
+        if (!$unitId) {
+            return back()->withErrors(['unit_id' => 'Unit tidak ditemukan untuk pengguna ini.']);
+        }
+
+        $document = Document::create([
+            'unit_id' => $unitId,
+            'uploaded_by' => $user->id,
+            'title' => $validated['title'],
+            'description' => $validated['description'] ?? null,
+            'category' => $validated['category'] ?? null,
+            'status' => $validated['status'] ?? 'draft',
+            'file_path' => '',
+        ]);
+
+        $media = $document
+            ->addMedia($request->file('file'))
+            ->toMediaCollection('documents');
+
+        $disk = Storage::disk($media->disk);
+        $diskRoot = $disk->path('');
+        $relativePath = ltrim(str_replace($diskRoot, '', $media->getPath()), '/');
+        $document->file_path = $relativePath;
+        $document->mime = $media->mime_type;
+        $document->size = $media->size;
+        $document->save();
+
+        // attach to submission
+        $submission->documents()->syncWithoutDetaching([$document->id]);
+
+        return back()->with('status', 'Dokumen diunggah dan ditautkan');
     }
 }

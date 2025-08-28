@@ -27,9 +27,15 @@ type Props = {
     size?: number;
   } | null;
   documentId?: number | null;
+  // Optional: extra payload to append (e.g., redirect_back)
+  extraPayload?: Record<string, any>;
+  // Optional: callback after successful upload/update
+  onUploaded?: () => void;
+  // Optional: override action URL for create mode (e.g., upload-and-attach)
+  actionUrl?: string;
 };
 
-export function DocumentForm({ open, onOpenChange, unitOptions, canManageAll, defaultUnitId, mode = 'create', initialData = null, documentId = null }: Props) {
+export function DocumentForm({ open, onOpenChange, unitOptions, canManageAll, defaultUnitId, mode = 'create', initialData = null, documentId = null, extraPayload, onUploaded, actionUrl }: Props) {
   const { data, setData, post, put, processing, errors, reset, progress, clearErrors } = useForm({
     title: '',
     description: '',
@@ -81,12 +87,16 @@ export function DocumentForm({ open, onOpenChange, unitOptions, canManageAll, de
           file: data.file,
           _method: 'PUT',
         };
+        if (extraPayload) {
+          Object.assign(payload, extraPayload);
+        }
         router.post(`/documents/${documentId}`, payload, {
           forceFormData: true,
           onSuccess: () => {
             toast.success('Dokumen berhasil diperbarui.');
             onOpenChange(false);
             reset();
+            onUploaded && onUploaded();
           },
           onError: (errs) => {
             const firstKey = Object.keys(errs || {})[0];
@@ -101,6 +111,7 @@ export function DocumentForm({ open, onOpenChange, unitOptions, canManageAll, de
             toast.success('Dokumen berhasil diperbarui.');
             onOpenChange(false);
             reset();
+            onUploaded && onUploaded();
           },
           onError: (errs) => {
             const firstKey = Object.keys(errs || {})[0];
@@ -110,12 +121,22 @@ export function DocumentForm({ open, onOpenChange, unitOptions, canManageAll, de
         });
       }
     } else {
-      post('/documents', {
+      const payload: Record<string, any> = {
+        title: data.title,
+        description: data.description,
+        category: data.category,
+        status: data.status,
+        unit_id: data.unit_id,
+        file: data.file,
+        ...(extraPayload || {}),
+      };
+      router.post(actionUrl || '/documents', payload, {
         forceFormData: true,
         onSuccess: () => {
           toast.success('Dokumen berhasil diunggah.');
           onOpenChange(false);
           reset();
+          onUploaded && onUploaded();
         },
         onError: (errs) => {
           const firstKey = Object.keys(errs || {})[0];

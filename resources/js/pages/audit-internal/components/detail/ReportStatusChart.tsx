@@ -4,7 +4,6 @@ import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 type StatusDatum = { key?: string; name: string; value: number };
 const COLOR_BY_KEY: Record<string, string> = {
   positif: '#34d399',
-  negatif_observasi: '#f59e0b',
   negatif_minor: '#f97316',
   negatif_mayor: '#ef4444',
 };

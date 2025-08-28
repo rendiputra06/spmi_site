@@ -8,6 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import InfoBar from './components/auditee/InfoBar';
 import DocumentPickerModal from './components/auditee/DocumentPickerModal';
 import SelectedDocsModal from './components/auditee/SelectedDocsModal';
+import { DocumentForm } from '@/pages/documents/components/DocumentForm';
 
 interface PertanyaanSubmissionInfo {
     id: number;
@@ -42,6 +43,7 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
     const page = usePage();
     const [isPickerOpen, setIsPickerOpen] = useState(false);
     const [isReviewOpen, setIsReviewOpen] = useState(false);
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [activeSubmissionId, setActiveSubmissionId] = useState<number | null>(null);
     const [pendingPertanyaanId, setPendingPertanyaanId] = useState<number | null>(null);
     const [inlineAlert, setInlineAlert] = useState<string | null>(null);
@@ -49,6 +51,27 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
     const [commentsDraft, setCommentsDraft] = useState<Record<number, string>>({});
     const [isSubmittingAll, setIsSubmittingAll] = useState(false);
     const [savingCommentFor, setSavingCommentFor] = useState<number | null>(null);
+
+    // Ensure a submission exists for a pertanyaan before opening upload modal
+    const handleUploadAndAttach = (pertanyaanId: number) => {
+        const info = submissions[pertanyaanId];
+        if (info && info.id) {
+            setActiveSubmissionId(info.id);
+            setIsUploadOpen(true);
+            return;
+        }
+        // Create draft submission first, then trigger partial reload
+        setPendingPertanyaanId(pertanyaanId);
+        router.post(`/audit-internal/${session.id}/auditee-submissions/upsert`, { pertanyaan_id: pertanyaanId }, {
+            onSuccess: () => {
+                router.reload({ only: ['submissions'] });
+            },
+            onError: () => {
+                setPendingPertanyaanId(null);
+                toast.error('Gagal menyiapkan jawaban untuk pertanyaan ini.');
+            }
+        });
+    };
 
     // Flatten all pertanyaan for validation
     const allPertanyaanIds = useMemo(() => {
@@ -59,10 +82,13 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
 
     // When submissions updated and we have a pending pertanyaan, open modal with its new submission id
     useEffect(() => {
-        if (pendingPertanyaanId && submissions[pendingPertanyaanId]?.id) {
-            setActiveSubmissionId(submissions[pendingPertanyaanId].id);
-            setIsPickerOpen(true);
-            setPendingPertanyaanId(null);
+        if (pendingPertanyaanId) {
+            const info = submissions[pendingPertanyaanId];
+            if (info && info.id) {
+                setActiveSubmissionId(info.id);
+                setIsUploadOpen(true);
+                setPendingPertanyaanId(null);
+            }
         }
     }, [submissions, pendingPertanyaanId]);
 
@@ -195,7 +221,7 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
                         <thead className="bg-muted/50">
                             <tr>
                                 <th className="px-3 py-2 text-left">Standar / Indikator / Pertanyaan</th>
-                                <th className="px-3 py-2 text-left">Evidence</th>
+                                <th className="px-3 py-2 text-left">Link Bukti Dokumen</th>
                                 <th className="px-3 py-2 text-left">Status</th>
                                 <th className="px-3 py-2 text-left">Aksi</th>
                             </tr>
@@ -227,7 +253,13 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
                                                             <td className="px-3 py-2 pl-10">- {q.isi}</td>
                                                             <td className="px-3 py-2">
                                                                 {info?.doc_count ? (
-                                                                    <Badge variant="outline">{info.doc_count} dokumen</Badge>
+                                                                    <Badge
+                                                                        variant="outline"
+                                                                        className="cursor-pointer hover:underline"
+                                                                        onClick={() => handleReview(q.id)}
+                                                                    >
+                                                                        {info.doc_count} dokumen
+                                                                    </Badge>
                                                                 ) : (
                                                                     <span className="text-muted-foreground">Belum ada dokumen</span>
                                                                 )}
@@ -251,7 +283,13 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
                                                             <td className="px-3 py-2">
                                                                 <div className="flex flex-wrap gap-2">
                                                                     <Button size="sm" variant="outline" onClick={() => handleOpenAttach(q.id)}>Pilih Dokumen</Button>
-                                                                    <Button size="sm" variant="ghost" disabled={!info?.doc_count} onClick={() => handleReview(q.id)}>Review</Button>
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="outline"
+                                                                        onClick={() => handleUploadAndAttach(q.id)}
+                                                                    >
+                                                                        Upload
+                                                                    </Button>
                                                                     <Button size="sm" variant="secondary" onClick={() => handleOpenComment(q.id)}>
                                                                         {openCommentFor === q.id ? 'Tutup Narasi' : 'Isi Narasi'}
                                                                     </Button>
@@ -291,6 +329,22 @@ export default function AuditeeSubmissionsIndex({ session, unit, standars, submi
                 </div>
                 <DocumentPickerModal open={isPickerOpen} submissionId={activeSubmissionId} onClose={() => setIsPickerOpen(false)} onPicked={handlePicked} />
                 <SelectedDocsModal open={isReviewOpen} submissionId={activeSubmissionId} onClose={() => setIsReviewOpen(false)} />
+                <DocumentForm
+                    open={isUploadOpen}
+                    onOpenChange={(v) => setIsUploadOpen(v)}
+                    unitOptions={[]}
+                    canManageAll={false}
+                    defaultUnitId={unit ? String(unit.id) : ''}
+                    mode="create"
+                    initialData={null}
+                    documentId={null}
+                    actionUrl={activeSubmissionId ? `/auditee-submissions/${activeSubmissionId}/upload-and-attach` : undefined}
+                    onUploaded={() => {
+                        toast.success('Dokumen diunggah dan dilampirkan.');
+                        router.reload({ only: ['submissions'] });
+                        setIsReviewOpen(true);
+                    }}
+                />
             </div>
         </AppLayout>
     );

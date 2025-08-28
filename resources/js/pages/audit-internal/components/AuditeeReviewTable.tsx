@@ -119,8 +119,7 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
                         <td className="px-3 py-2">
                           {r.documents?.length ? (
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline">{r.documents.length} dokumen</Badge>
-                              <Button size="sm" variant="ghost" onClick={() => openList(r.documents)}>Lihat</Button>
+                              <Badge className="cursor-pointer hover:underline" variant="outline" onClick={() => openList(r.documents)}>{r.documents.length} dokumen</Badge>
                             </div>
                           ) : (
                             <span className="text-muted-foreground">Tidak ada dokumen</span>
@@ -194,7 +193,6 @@ export default function AuditeeReviewTable({ submissions, draft, saving, isUnitS
                 <div className="flex flex-col gap-1 text-sm">
                   {[
                     { val: 'positif', label: 'Positif' },
-                    { val: 'negatif_observasi', label: 'Negatif (Observasi)' },
                     { val: 'negatif_minor', label: 'Negatif (Minor)' },
                     { val: 'negatif_mayor', label: 'Negatif (Mayor)' },
                   ].map((opt) => (

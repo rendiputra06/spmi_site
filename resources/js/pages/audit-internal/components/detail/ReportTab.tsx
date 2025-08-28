@@ -69,8 +69,8 @@ export default function ReportTab({ rows }: Props) {
   }, [filteredRows, groupBy]);
 
   const statuses = useMemo(() => {
-    // Fixed order for filters
-    const ORDER = ['positif', 'negatif_observasi', 'negatif_minor', 'negatif_mayor'];
+    // Fixed order for filters (observasi removed)
+    const ORDER = ['positif', 'negatif_minor', 'negatif_mayor'];
     const set = new Set<string>();
     rows.forEach((r) => set.add((r.auditorReview?.outcome_status ?? r.status ?? '-')));
     const items = Array.from(set.values());
@@ -82,11 +82,10 @@ export default function ReportTab({ rows }: Props) {
   const statusChartData = useMemo(() => {
     const LABELS: Record<string, string> = {
       positif: 'Positif',
-      negatif_observasi: 'Observasi',
       negatif_minor: 'Negatif Minor',
       negatif_mayor: 'Negatif Mayor',
     };
-    const ORDER = ['positif', 'negatif_observasi', 'negatif_minor', 'negatif_mayor'];
+    const ORDER = ['positif', 'negatif_minor', 'negatif_mayor'];
     const counts = new Map<string, number>();
     filteredRows.forEach((r) => {
       const st = (r.auditorReview?.outcome_status ?? r.status ?? '-') as string;

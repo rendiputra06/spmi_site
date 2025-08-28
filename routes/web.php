@@ -91,6 +91,7 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('audit-internal/{session}/auditee-submissions/upsert', [AuditeeSubmissionController::class, 'upsert']);
     Route::post('auditee-submissions/{submission}/attach-documents', [AuditeeSubmissionController::class, 'attachDocuments']);
     Route::post('auditee-submissions/{submission}/detach-documents', [AuditeeSubmissionController::class, 'detachDocuments']);
+    Route::post('auditee-submissions/{submission}/upload-and-attach', [AuditeeSubmissionController::class, 'uploadAndAttach']);
     Route::post('audit-internal/{session}/auditee-submissions/submit', [AuditeeSubmissionController::class, 'submit']);
     Route::get('auditee-submissions/{submission}/documents', [AuditeeSubmissionController::class, 'documents']);
 

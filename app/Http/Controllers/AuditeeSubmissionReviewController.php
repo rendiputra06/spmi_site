@@ -186,7 +186,7 @@ class AuditeeSubmissionReviewController extends Controller
         $validated = $request->validate([
             'score' => 'sometimes|nullable|in:0,1,2',
             'reviewer_note' => 'nullable|string',
-            'outcome_status' => 'nullable|in:positif,negatif_observasi,negatif_minor,negatif_mayor',
+            'outcome_status' => 'nullable|in:positif,negatif_minor,negatif_mayor',
             'special_note' => 'nullable|string',
         ]);
 

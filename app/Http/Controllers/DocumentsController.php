@@ -166,6 +166,10 @@ class DocumentsController extends Controller
         $document->size = $media->size;
         $document->save();
 
+        // Allow uploading from other pages without navigating away
+        if ($request->boolean('redirect_back')) {
+            return back()->with('success', 'Dokumen diunggah');
+        }
         return redirect()->route('documents.index')->with('success', 'Dokumen diunggah');
     }
 
