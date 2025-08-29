@@ -55,6 +55,11 @@ class RolePermissionSeeder extends Seeder
                 'auditee-submission-review',
                 'documents-view',
             ],
+            'Kegiatan' => [
+                'kegiatan-view',
+                'monev-view',
+                'monev-manage',
+            ],
             'Monev Dosen' => [
                 'monev-dosen-view',
             ],

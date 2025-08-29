@@ -22,6 +22,7 @@ use App\Http\Controllers\AuditeeSubmissionController;
 use App\Http\Controllers\UserImpersonationController;
 use App\Http\Controllers\DosenProfileController;
 use App\Http\Controllers\MataKuliahController;
+use App\Http\Controllers\MonevController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -58,6 +59,13 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::resource('mata-kuliah', MataKuliahController::class)->only(['index','store','update','destroy']);
     // periodes routes
     Route::resource('periodes', PeriodeController::class)->only(['index','store','update','destroy']);
+    // monev routes (kegiatan)
+    Route::resource('monev', MonevController::class)->only(['index','store','update','destroy']);
+    // monev detail + evaluations
+    Route::get('monev/{id}/detail', [MonevController::class, 'detail'])->name('monev.detail');
+    Route::post('monev/{id}/evaluations', [MonevController::class, 'storeEvaluation'])->name('monev.evaluations.store');
+    Route::put('monev/evaluations/{evaluationId}', [MonevController::class, 'updateEvaluation'])->name('monev.evaluations.update');
+    Route::delete('monev/evaluations/{evaluationId}', [MonevController::class, 'destroyEvaluation'])->name('monev.evaluations.destroy');
     // audit mutu internal (AMI)
     Route::resource('audit-internal', AuditSessionController::class)->only(['index','store','update','destroy']);
     Route::get('audit-internal/{id}/detail', [AuditSessionDetailController::class, 'show'])->name('audit-internal.detail');

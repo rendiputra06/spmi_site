@@ -132,6 +132,7 @@ class MenuSeeder extends Seeder
             'permission_name' => 'filemanager-view',
             'parent_id' => $utilities->id,
         ]);
+
         // GROUP: Master Data
         $master_data = Menu::create([
             'title' => 'Master Data',
@@ -167,7 +168,7 @@ class MenuSeeder extends Seeder
             'permission_name' => 'periodes-view',
             'parent_id' => $master_data->id,
         ]);
-        
+
         Menu::create([
             'title' => 'Mata Kuliah',
             'icon' => 'BookOpen',
@@ -176,7 +177,7 @@ class MenuSeeder extends Seeder
             'permission_name' => 'mata-kuliah-view',
             'parent_id' => $master_data->id,
         ]);
-        
+
         Menu::create([
             'title' => 'Standar Mutu',
             'icon' => 'CheckCircle',
@@ -184,6 +185,25 @@ class MenuSeeder extends Seeder
             'order' => 2,
             'permission_name' => 'standar-mutu-view',
         ]);
+
+        // GROUP: Kegiatan
+        $kegiatan = Menu::create([
+            'title' => 'Kegiatan',
+            'icon' => 'Calendar',
+            'route' => '#',
+            'order' => 6,
+            'permission_name' => 'kegiatan-view',
+        ]);
+
+        Menu::create([
+            'title' => 'Monev',
+            'icon' => 'ClipboardList',
+            'route' => '/monev',
+            'order' => 1,
+            'permission_name' => 'monev-view',
+            'parent_id' => $kegiatan->id,
+        ]);
+
         Menu::create([
             'title' => 'Audit Mutu Internal',
             'icon' => 'ClipboardCheck',
