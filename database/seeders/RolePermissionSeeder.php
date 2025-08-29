@@ -46,6 +46,7 @@ class RolePermissionSeeder extends Seeder
                 'dosen-view',                
                 'units-view',
                 'periodes-view',
+                'mata-kuliah-view',
             ],
             'Audit' => [
                 'audit-internal-view',
@@ -55,37 +56,33 @@ class RolePermissionSeeder extends Seeder
                 'documents-view',
             ],
             'Monev Dosen' => [
-                'monev-dosen-manage',
                 'monev-dosen-view',
             ],
         ];
 
+        // Pastikan semua permission didefinisikan ada (idempotent)
+        $allDefined = [];
+        $guard = config('auth.defaults.guard', 'web');
         foreach ($permissions as $group => $perms) {
             foreach ($perms as $name) {
-                $permission = Permission::firstOrCreate([
-                    'name' => $name,
-                    'group' => $group,
-                ]);
-
-                // Assign ke admin
-                if (!$admin->hasPermissionTo($permission)) {
-                    $admin->givePermissionTo($permission);
-                }
-
-                // Assign minimal ke user (auditee)
-                if (in_array($name, ['documents-view','my-dosen-view','monev-dosen-view', 'audit-internal-view', 'auditee-submission-view', 'my-dosen-view'])) {
-                    if (!$user->hasPermissionTo($permission)) {
-                        $user->givePermissionTo($permission);
-                    }
-                }
-
-                // Assign minimal ke auditor (hanya akses yang dibutuhkan auditor)
-                if (in_array($name, ['dashboard-view','my-dosen-view', 'documents-view', 'audit-internal-view', 'auditee-submission-review'])) {
-                    if (!$auditor->hasPermissionTo($permission)) {
-                        $auditor->givePermissionTo($permission);
-                    }
-                }
+                Permission::firstOrCreate(
+                    ['name' => $name, 'guard_name' => $guard],
+                    ['group' => $group]
+                );
+                $allDefined[] = $name;
             }
         }
+
+        // Daftar minimal per role (sinkronisasi ketat)
+        $userMinimal = ['documents-view','my-dosen-view','monev-dosen-view', 'audit-internal-view', 'auditee-submission-view'];
+        $auditorMinimal = ['dashboard-view','my-dosen-view', 'documents-view', 'audit-internal-view', 'auditee-submission-review'];
+
+        // Sinkronisasi permissions agar sesuai definisi saat ini
+        $admin->syncPermissions($allDefined);
+        $user->syncPermissions(array_values(array_intersect($allDefined, $userMinimal)));
+        $auditor->syncPermissions(array_values(array_intersect($allDefined, $auditorMinimal)));
+
+        // Bersihkan cache permission agar perubahan langsung efektif
+        app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

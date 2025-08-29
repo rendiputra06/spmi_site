@@ -101,6 +101,17 @@ export default function ReportTab({ rows }: Props) {
     }));
   }, [filteredRows]);
 
+  // Total skor auditor berdasarkan rows yang ter-filter
+  const totalSkor = useMemo(() => {
+    const toNum = (v: unknown) => (v === null || v === undefined || v === '' ? NaN : Number(v));
+    let sum = 0;
+    filteredRows.forEach((r) => {
+      const n = toNum(r.auditorReview?.score);
+      if (!isNaN(n)) sum += n;
+    });
+    return Number(sum.toFixed(2));
+  }, [filteredRows]);
+
   // Aggregations for averages
   const avgByUnit: AuditorAvgRow[] = useMemo(() => {
     const map = new Map<string, { key: string; auditor: number; cB: number; count: number }>();
@@ -189,6 +200,12 @@ export default function ReportTab({ rows }: Props) {
         setGroupBy={setGroupBy}
         onExport={handleExport}
       />
+
+      {/* Ringkasan Total Skor */}
+      <div className="rounded-lg border p-3 flex items-center gap-4">
+        <div className="text-sm text-muted-foreground">Total Skor (sesuai filter)</div>
+        <div className="text-xl font-semibold">{totalSkor}</div>
+      </div>
 
       {/* View switcher */}
       <div className="flex flex-wrap items-center gap-2">

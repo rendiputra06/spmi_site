@@ -6,11 +6,16 @@ use Illuminate\Database\Seeder;
 use App\Models\Menu;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Illuminate\Support\Facades\Schema;
 
 class MenuSeeder extends Seeder
 {
     public function run(): void
     {
+        Schema::disableForeignKeyConstraints();
+        Menu::truncate();
+        Schema::enableForeignKeyConstraints();
+
         // MENU: Dashboard
         Menu::create([
             'title' => 'Dashboard',
@@ -164,6 +169,15 @@ class MenuSeeder extends Seeder
         ]);
         
         Menu::create([
+            'title' => 'Mata Kuliah',
+            'icon' => 'BookOpen',
+            'route' => '/mata-kuliah',
+            'order' => 5,
+            'permission_name' => 'mata-kuliah-view',
+            'parent_id' => $master_data->id,
+        ]);
+        
+        Menu::create([
             'title' => 'Standar Mutu',
             'icon' => 'CheckCircle',
             'route' => '/standar-mutu',
@@ -177,14 +191,6 @@ class MenuSeeder extends Seeder
             'order' => 3,
             'permission_name' => 'audit-internal-view',
         ]);
-        // Admin: Surveys management (Monev Dosen)
-        Menu::create([
-            'title' => 'Surveys',
-            'icon' => 'ListChecks',
-            'route' => '/admin/surveys',
-            'order' => 4,
-            'permission_name' => 'monev-dosen-manage',
-        ]);
 
         Menu::create([
             'title' => 'Documents',
@@ -193,15 +199,7 @@ class MenuSeeder extends Seeder
             'order' => 5,
             'permission_name' => 'documents-view',
         ]);
-        // Monev Dosen (self-service survey)
-        Menu::create([
-            'title' => 'Monev Dosen',
-            'icon' => 'ListChecks',
-            'route' => '/monev-dosen',
-            'order' => 6,
-            'permission_name' => 'monev-dosen-view',
-        ]);
-        
+
         $permissions = Menu::pluck('permission_name')->unique()->filter();
 
         foreach ($permissions as $permName) {

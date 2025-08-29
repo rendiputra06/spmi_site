@@ -21,10 +21,7 @@ use App\Http\Controllers\DocumentsController;
 use App\Http\Controllers\AuditeeSubmissionController;
 use App\Http\Controllers\UserImpersonationController;
 use App\Http\Controllers\DosenProfileController;
-use App\Http\Controllers\MonevDosenController;
-use App\Http\Controllers\Admin\SurveyController as AdminSurveyController;
-use App\Http\Controllers\Admin\SurveyQuestionController as AdminSurveyQuestionController;
-use App\Http\Controllers\Admin\SurveyOptionController as AdminSurveyOptionController;
+use App\Http\Controllers\MataKuliahController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -57,6 +54,8 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::get('dosen.json', [DosenController::class, 'jsonIndex']);
     // units routes
     Route::resource('units', UnitController::class)->only(['index','store','update','destroy']);
+    // mata kuliah routes
+    Route::resource('mata-kuliah', MataKuliahController::class)->only(['index','store','update','destroy']);
     // periodes routes
     Route::resource('periodes', PeriodeController::class)->only(['index','store','update','destroy']);
     // audit mutu internal (AMI)
@@ -112,28 +111,6 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
 
     // My Dosen profile (self-view)
     Route::get('/my/dosen', DosenProfileController::class)->name('my-dosen.index');
-
-    // Monev Dosen
-    Route::get('/monev-dosen', [MonevDosenController::class, 'index'])->name('monev-dosen.index');
-    Route::get('/monev-dosen/assignments/{assignment}', [MonevDosenController::class, 'show'])->name('monev-dosen.show');
-    Route::post('/monev-dosen/assignments/{assignment}/submit', [MonevDosenController::class, 'submit'])->name('monev-dosen.submit');
-
-    // Admin Monev Dosen: Surveys CRUD
-    // Route::middleware('permission:monev-dosen-manage')->group(function () {
-        Route::resource('admin/surveys', AdminSurveyController::class)->names('admin.surveys');
-
-        // Questions
-        Route::post('admin/surveys/{survey}/questions', [AdminSurveyQuestionController::class, 'store'])->name('admin.surveys.questions.store');
-        Route::put('admin/surveys/{survey}/questions/{question}', [AdminSurveyQuestionController::class, 'update'])->name('admin.surveys.questions.update');
-        Route::delete('admin/surveys/{survey}/questions/{question}', [AdminSurveyQuestionController::class, 'destroy'])->name('admin.surveys.questions.destroy');
-        Route::post('admin/surveys/{survey}/questions/reorder', [AdminSurveyQuestionController::class, 'reorder'])->name('admin.surveys.questions.reorder');
-
-        // Options
-        Route::post('admin/questions/{question}/options', [AdminSurveyOptionController::class, 'store'])->name('admin.questions.options.store');
-        Route::put('admin/questions/{question}/options/{option}', [AdminSurveyOptionController::class, 'update'])->name('admin.questions.options.update');
-        Route::delete('admin/questions/{question}/options/{option}', [AdminSurveyOptionController::class, 'destroy'])->name('admin.questions.options.destroy');
-        Route::post('admin/questions/{question}/options/reorder', [AdminSurveyOptionController::class, 'reorder'])->name('admin.questions.options.reorder');
-    // });
 });
 
 require __DIR__ . '/settings.php';
