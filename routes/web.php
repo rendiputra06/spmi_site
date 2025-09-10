@@ -23,6 +23,8 @@ use App\Http\Controllers\UserImpersonationController;
 use App\Http\Controllers\DosenProfileController;
 use App\Http\Controllers\MataKuliahController;
 use App\Http\Controllers\MonevController;
+use App\Http\Controllers\MonevDosenController;
+use App\Http\Controllers\MonevTemplateController;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -66,6 +68,22 @@ Route::middleware(['auth', 'menu.permission'])->group(function () {
     Route::post('monev/{id}/evaluations', [MonevController::class, 'storeEvaluation'])->name('monev.evaluations.store');
     Route::put('monev/evaluations/{evaluationId}', [MonevController::class, 'updateEvaluation'])->name('monev.evaluations.update');
     Route::delete('monev/evaluations/{evaluationId}', [MonevController::class, 'destroyEvaluation'])->name('monev.evaluations.destroy');
+    // GJM scoring routes
+    Route::get('monev/evaluations/{evaluationId}/score', [MonevController::class, 'scoreForm'])->name('monev.evaluations.score');
+    Route::post('monev/evaluations/{evaluationId}/score', [MonevController::class, 'saveScores'])->name('monev.evaluations.score.save');
+
+    // Monev Templates (admin manage)
+    Route::get('monev-templates', [MonevTemplateController::class, 'index'])->name('monev-templates.index');
+    Route::get('monev-templates/{id}', [MonevTemplateController::class, 'show'])->name('monev-templates.show');
+    Route::post('monev-templates', [MonevTemplateController::class, 'store'])->name('monev-templates.store');
+    Route::put('monev-templates/{id}', [MonevTemplateController::class, 'update'])->name('monev-templates.update');
+    Route::delete('monev-templates/{id}', [MonevTemplateController::class, 'destroy'])->name('monev-templates.destroy');
+    Route::post('monev-templates/{id}/duplicate', [MonevTemplateController::class, 'duplicate'])->name('monev-templates.duplicate');
+    Route::post('monev-templates/{templateId}/questions', [MonevTemplateController::class, 'storeQuestion'])->name('monev-templates.questions.store');
+    Route::put('monev-templates/{templateId}/questions/{questionId}', [MonevTemplateController::class, 'updateQuestion'])->name('monev-templates.questions.update');
+    Route::delete('monev-templates/{templateId}/questions/{questionId}', [MonevTemplateController::class, 'destroyQuestion'])->name('monev-templates.questions.destroy');
+    Route::post('monev-templates/{templateId}/questions/reorder', [MonevTemplateController::class, 'reorderQuestions'])->name('monev-templates.questions.reorder');
+    Route::get('monev-templates/{id}/export-recap', [MonevTemplateController::class, 'exportRecap'])->name('monev-templates.export');
     // audit mutu internal (AMI)
     Route::resource('audit-internal', AuditSessionController::class)->only(['index','store','update','destroy']);
     Route::get('audit-internal/{id}/detail', [AuditSessionDetailController::class, 'show'])->name('audit-internal.detail');

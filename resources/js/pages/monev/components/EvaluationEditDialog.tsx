@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Save, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
@@ -65,8 +66,12 @@ export default function EvaluationEditDialog({ open, onOpenChange, data, errors,
             {errors['dosen_id'] && <div className="text-xs text-red-500">{errors['dosen_id']}</div>}
           </div>
           <DialogFooter className="md:col-span-2">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Batal</Button>
-            <Button type="submit" disabled={processing}>Simpan</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <X className="h-4 w-4 mr-2" /> Batal
+            </Button>
+            <Button type="submit" disabled={processing}>
+              <Save className="h-4 w-4 mr-2" /> Simpan
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

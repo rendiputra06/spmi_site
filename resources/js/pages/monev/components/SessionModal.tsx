@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
+import { Plus, Save, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import ProdiRow from './ProdiRow';
 
@@ -20,10 +21,12 @@ interface Props {
     tanggal_mulai: string;
     tanggal_selesai: string;
     prodis: ProdiRowValue[];
+    template_id?: number | '';
   };
   errors: Record<string, any>;
   processing?: boolean;
   periodes: PeriodeOpt[];
+  templates?: { id: number; nama: string }[];
   units: UnitOpt[];
   dosens: DosenOpt[];
   onSubmit: (e: React.FormEvent) => void;
@@ -34,7 +37,7 @@ interface Props {
   onRemoveProdi: (index: number) => void;
 }
 
-export default function SessionModal({ open, onOpenChange, isEditing, data, errors, processing, periodes, units, dosens, onSubmit, onChangeField, onAddProdi, onChangeProdiUnit, onChangeProdiGjm, onRemoveProdi }: Props) {
+export default function SessionModal({ open, onOpenChange, isEditing, data, errors, processing, periodes, templates = [], units, dosens, onSubmit, onChangeField, onAddProdi, onChangeProdiUnit, onChangeProdiGjm, onRemoveProdi }: Props) {
   return (
     <div className={`fixed inset-0 z-50 ${open ? 'flex' : 'hidden'} items-center justify-center bg-black/50`}>
       <div className="mx-4 w-full max-w-2xl rounded-lg bg-background p-6 shadow-lg">
@@ -45,6 +48,16 @@ export default function SessionModal({ open, onOpenChange, isEditing, data, erro
               <label className="text-sm">Nama</label>
               <Input value={data.nama} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChangeField('nama', e.target.value)} />
               {errors.nama && <div className="text-xs text-red-500">{errors.nama as any}</div>}
+            </div>
+            <div>
+              <label className="text-sm">Template Pertanyaan</label>
+              <select className="w-full border rounded-md h-9 px-3" value={data.template_id ?? ''} onChange={(e: React.ChangeEvent<HTMLSelectElement>) => onChangeField('template_id', e.target.value ? Number(e.target.value) : '')}>
+                <option value="">Tanpa Template</option>
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.nama}</option>
+                ))}
+              </select>
+              {errors['template_id'] && <div className="text-xs text-red-500">{errors['template_id'] as any}</div>}
             </div>
             <div>
               <label className="text-sm">Periode</label>
@@ -79,7 +92,7 @@ export default function SessionModal({ open, onOpenChange, isEditing, data, erro
             <div className="mb-2 flex items-center justify-between">
               <div className="font-medium">Prodi & GJM</div>
               <Button type="button" variant="outline" onClick={onAddProdi}>
-                + Tambah Prodi
+                <Plus className="h-4 w-4 mr-2" /> Tambah Prodi
               </Button>
             </div>
             <div className="space-y-2">
@@ -101,10 +114,10 @@ export default function SessionModal({ open, onOpenChange, isEditing, data, erro
 
           <div className="flex justify-end gap-2">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Batal
+              <X className="h-4 w-4 mr-2" /> Batal
             </Button>
             <Button type="submit" disabled={processing}>
-              {isEditing ? 'Simpan Perubahan' : 'Simpan'}
+              <Save className="h-4 w-4 mr-2" /> {isEditing ? 'Simpan Perubahan' : 'Simpan'}
             </Button>
           </div>
         </form>

@@ -16,6 +16,8 @@ class DatabaseSeeder extends Seeder
             DosenSeeder::class,
             StandarMutuSeeder::class,
             PeriodeAndAuditSessionSeeder::class,
+            MonevTemplateSeeder::class,
+            MonevSeeder::class,
         ]);
 
         $user = User::factory()->create([

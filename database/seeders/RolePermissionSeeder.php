@@ -10,10 +10,12 @@ class RolePermissionSeeder extends Seeder
 {
     public function run(): void
     {
-        // Buat role admin, auditor dan user jika belum ada
+        // Buat role admin, auditor, user, dosen, dan gjm jika belum ada
         $admin = Role::firstOrCreate(['name' => 'admin']);
         $auditor = Role::firstOrCreate(['name' => 'auditor']);
         $user = Role::firstOrCreate(['name' => 'user']);
+        $dosen = Role::firstOrCreate(['name' => 'dosen']);
+        $gjm = Role::firstOrCreate(['name' => 'gjm']);
 
         // Daftar permission berdasarkan menu structure
         $permissions = [
@@ -81,11 +83,25 @@ class RolePermissionSeeder extends Seeder
         // Daftar minimal per role (sinkronisasi ketat)
         $userMinimal = ['documents-view','my-dosen-view','monev-dosen-view', 'audit-internal-view', 'auditee-submission-view'];
         $auditorMinimal = ['dashboard-view','my-dosen-view', 'documents-view', 'audit-internal-view', 'auditee-submission-review'];
+        // GJM membutuhkan akses ke menu Kegiatan/Monev (tanpa manage penuh), dan akses dasar
+        $gjmMinimal = [
+            'dashboard-view',
+            'kegiatan-view',
+            'monev-view',
+            // bila diperlukan akses monev-dosen untuk isi sebagai dosen
+            'monev-dosen-view',
+        ];
+        // Dosen role berfokus pada pengisian Monev Dosen
+        $dosenMinimal = [
+            'dashboard-view',
+        ];
 
         // Sinkronisasi permissions agar sesuai definisi saat ini
         $admin->syncPermissions($allDefined);
         $user->syncPermissions(array_values(array_intersect($allDefined, $userMinimal)));
         $auditor->syncPermissions(array_values(array_intersect($allDefined, $auditorMinimal)));
+        $gjm->syncPermissions(array_values(array_intersect($allDefined, $gjmMinimal)));
+        $dosen->syncPermissions(array_values(array_intersect($allDefined, $dosenMinimal)));
 
         // Bersihkan cache permission agar perubahan langsung efektif
         app(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();

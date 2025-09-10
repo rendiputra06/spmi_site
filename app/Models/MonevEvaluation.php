@@ -15,6 +15,7 @@ class MonevEvaluation extends Model
         'mata_kuliah_id',
         'dosen_id',
         'area',
+        'template_id',
     ];
 
     public function session()
@@ -35,5 +36,10 @@ class MonevEvaluation extends Model
     public function dosen()
     {
         return $this->belongsTo(Dosen::class);
+    }
+
+    public function template()
+    {
+        return $this->belongsTo(MonevTemplate::class, 'template_id');
     }
 }

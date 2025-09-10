@@ -15,6 +15,7 @@ class MonevSession extends Model
         'tahun',
         'tanggal_mulai',
         'tanggal_selesai',
+        'template_id',
     ];
 
     protected $casts = [
@@ -30,5 +31,10 @@ class MonevSession extends Model
     public function prodis()
     {
         return $this->hasMany(MonevSessionProdi::class);
+    }
+
+    public function template()
+    {
+        return $this->belongsTo(MonevTemplate::class, 'template_id');
     }
 }

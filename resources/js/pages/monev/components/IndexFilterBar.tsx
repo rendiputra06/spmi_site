@@ -16,6 +16,8 @@ interface Props {
   onChangePerPage: (v: string) => void; // triggers fetch immediately
   onApply: () => void;
   onReset: () => void;
+  activeOnly: boolean;
+  setActiveOnly: (v: boolean) => void; // triggers fetch on apply
 }
 
 export default function IndexFilterBar({
@@ -30,6 +32,8 @@ export default function IndexFilterBar({
   onChangePerPage,
   onApply,
   onReset,
+  activeOnly,
+  setActiveOnly,
 }: Props) {
   const PER_PAGE_OPTIONS = ['10', '25', '50', '100'] as const;
 
@@ -51,7 +55,7 @@ export default function IndexFilterBar({
   };
 
   return (
-    <div className="rounded-lg border p-4 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+    <div className="rounded-lg border p-4 grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
       <div>
         <label className="text-sm" htmlFor="monev-search">Pencarian</label>
         <Input
@@ -89,6 +93,13 @@ export default function IndexFilterBar({
         />
       </div>
       <div>
+        <label className="text-sm" htmlFor="monev-active">Status</label>
+        <div className="h-9 flex items-center gap-2 border rounded-md px-3">
+          <input id="monev-active" type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
+          <span className="text-sm">Hanya sesi aktif</span>
+        </div>
+      </div>
+      <div>
         <label className="text-sm" htmlFor="monev-per-page">Per Halaman</label>
         <select
           id="monev-per-page"
@@ -103,7 +114,7 @@ export default function IndexFilterBar({
           ))}
         </select>
       </div>
-      <div className="flex gap-2 md:justify-end md:col-span-4">
+      <div className="flex gap-2 md:justify-end md:col-span-5">
         <Button variant="outline" onClick={onReset}>
           Reset
         </Button>

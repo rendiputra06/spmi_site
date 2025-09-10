@@ -186,7 +186,7 @@ class MenuSeeder extends Seeder
             'permission_name' => 'standar-mutu-view',
         ]);
 
-        // GROUP: Kegiatan
+        // GROUP: Kegiatan (Admin/Manager)
         $kegiatan = Menu::create([
             'title' => 'Kegiatan',
             'icon' => 'Calendar',
@@ -201,6 +201,15 @@ class MenuSeeder extends Seeder
             'route' => '/monev',
             'order' => 1,
             'permission_name' => 'monev-view',
+            'parent_id' => $kegiatan->id,
+        ]);
+
+        Menu::create([
+            'title' => 'Template Monev',
+            'icon' => 'ListChecks',
+            'route' => '/monev-templates',
+            'order' => 4,
+            'permission_name' => 'monev-manage',
             'parent_id' => $kegiatan->id,
         ]);
 
